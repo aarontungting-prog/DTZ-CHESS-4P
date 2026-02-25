@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>四人西洋棋 競技版 (黃金比例 UI 版)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <style>
+        /* =========================================
+           1. 全域設定 (Global UI & Canvas)
+           ========================================= */
+        body { margin: 0; padding: 0; overflow: hidden; background: #222222; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; color: white; user-select: none; }
+        canvas { position: absolute; top: 0; left: 0; z-index: 0; outline: none; cursor: grab; }
+        canvas:active { cursor: grabbing; }
+        #ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
+        
+        .hud-container { position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; gap: 15px; width: 280px; pointer-events: auto; }
+        .hud-box { background: rgba(30, 30, 30, 0.95); border: 1px solid #444; border-radius: 8px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .user-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .name-text { font-weight: bold; font-size: 16px; color: #fff; }
+        
+        .custom-btn, .game-btn, .small-btn { padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; border: none; width: 100%; text-align: center; box-sizing: border-box; }
+        .custom-btn { background: #444; color: #ccc; font-size: 13px; }
+        .custom-btn:hover { background: #555; color: #fff; }
+        .game-btn { background: #8ca2ad; color: #111; margin-top: 8px; font-size: 14px;}
+        .game-btn:hover { background: #9db2bd; }
+        .join-btn { background: #739954; color: #fff; }
+        .join-btn:hover { background: #84a965; }
+        
+        .lobby-title { color: #aaa; font-size: 12px; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid #444; padding-bottom: 5px; text-transform: uppercase; }
+        .room-status { font-size: 14px; color: #739954; margin-bottom: 12px; font-weight: bold; }
+        
+        .side-panel { position: fixed; top: 0; left: 0; bottom: 0; width: 300px; background: rgba(30, 30, 30, 0.98); border-right: 1px solid #444; transform: translateX(-105%); transition: 0.3s; z-index: 1200; padding: 25px; box-sizing: border-box; pointer-events: auto; }
+        .side-panel.active { transform: translateX(0); }
+        .custom-input { width: 100%; padding: 10px; background: #111; border: 1px solid #555; color: #fff; border-radius: 4px; box-sizing: border-box; margin-bottom: 10px; }
+        
+        .avatar-preview-container { width: 90px; height: 90px; margin: 0 auto 15px auto; position: relative; border-radius: 8px; background: #111; cursor: pointer; overflow: hidden; border: 2px solid #555; transition: 0.3s; }
+        .avatar-preview-container:hover { border-color: #8ca2ad; }
+        .avatar-preview-container img { width: 100%; height: 100%; object-fit: cover; }
+        .avatar-hint { position: absolute; bottom: 0; width: 100%; text-align: center; background: rgba(0,0,0,0.7); font-size: 11px; padding: 4px 0; color: #fff; }
+
+        #menu-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 900; pointer-events: auto; }
+        #menu-backdrop.active { display: block; }
+        .time-setting-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .time-setting-row div { flex: 1; }
+        .time-setting-row label { display: block; font-size: 11px; color: #aaa; margin-bottom: 4px; }
+        #loading { position: fixed; inset: 0; background: #222; display: flex; justify-content: center; align-items: center; color: #fff; font-weight: bold; z-index: 2000; font-size: 20px; }
+        #victory-screen { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:3000; flex-direction:column; justify-content:center; align-items:center; text-align:center; pointer-events: auto; }
+        
+        #mobile-menu-btn { display: none; }
+        @media (max-width: 600px) {
+            #mobile-menu-btn { display: flex; position: absolute; bottom: 20px; left: 20px; width: 50px; height: 50px; background: #444; border-radius: 50%; color: #fff; justify-content: center; align-items: center; font-weight: bold; z-index: 1500; pointer-events: auto; }
+            .hud-container { width: 100%; position: fixed; top: auto; bottom: 0; left: 0; transform: translateY(110%); transition: 0.3s; padding: 10px 20px 80px 20px; background: rgba(30, 30, 30, 0.95); border-top: 1px solid #555; box-sizing: border-box; z-index: 1000; }
+            .hud-container.mobile-visible { transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<div id="loading">載入四人棋引擎...</div>
+<canvas id="chess-canvas"></canvas>
+
+<div id="ui" style="display:none;">
+    <div id="mobile-menu-btn" onclick="toggleMenu()">☰</div>
+    <div id="menu-backdrop" onclick="closeAllMenus()"></div>
+
+    <div id="menu-panel" class="hud-container">
+        <div class="hud-box">
+            <div class="user-card-header">
+                <img id="hud-avatar" src="" style="width:36px; height:36px; border-radius:4px; object-fit:cover; background:#111;">
+                <span id="user-name" class="name-text">訪客</span>
+            </div>
+            <button class="custom-btn" onclick="document.getElementById('custom-panel').classList.add('active')">🛠️ 編輯個人資料</button>
+        </div>
+
+        <div class="hud-box">
+            <div class="lobby-title">對戰大廳</div>
+            <div id="room-display" class="room-status">閒置中</div>
+            <div id="lobby-buttons">
+                <button id="btn-practice" class="game-btn" style="background:#f0c424; color:#000;">單機沙盒練習</button>
+                <div style="height:15px; border-bottom: 1px solid #444; margin-bottom: 15px;"></div>
+                
+                <div class="time-setting-row">
+                    <div><label>時間 (分鐘)</label><input type="number" id="time-mins" class="custom-input" value="5" min="1" max="60"></div>
+                    <div><label>加秒 (秒)</label><input type="number" id="time-inc" class="custom-input" value="5" min="0" max="60"></div>
+                </div>
+                
+                <button id="btn-create" class="game-btn">創建房間</button>
+                <button id="btn-join" class="game-btn join-btn">加入房間</button>
+            </div>
+            <button id="btn-exit-practice" class="game-btn" style="display:none; background:#ff9900; color:black;">結束單機</button>
+            <button id="btn-leave" class="game-btn" style="display:none; background:#e33539; color:white;">退出房間</button>
+        </div>
+    </div>
+
+    <div id="custom-panel" class="side-panel">
+        <h2 style="color:#fff; margin-top:0;">個人設定</h2>
+        
+        <div class="avatar-preview-container" onclick="document.getElementById('avatar-upload').click()">
+            <img id="avatar-preview-img" src="" alt="Avatar">
+            <div class="avatar-hint">上傳照片</div>
+        </div>
+        <input type="file" id="avatar-upload" accept="image/*" style="display:none;" onchange="handleAvatarUpload(event)">
+        
+        <label style="color:#aaa; font-size:12px;">機器人隨機代碼 (若不上傳照片)</label>
+        <div style="display:flex; gap:5px; margin-bottom:10px;">
+            <input type="text" id="avatar-seed" class="custom-input" style="margin:0;">
+            <button class="small-btn" style="width:auto;" onclick="document.getElementById('avatar-seed').value = Math.random().toString(36).substring(7); document.getElementById('avatar-preview-img').src=''; userSettings.customAvatar=null;">🎲</button>
+        </div>
+
+        <label style="color:#aaa; font-size:12px;">遊戲暱稱</label>
+        <input type="text" id="edit-name" class="custom-input">
+        <button class="game-btn join-btn" onclick="saveProfile()" style="margin-top:20px;">儲存並套用</button>
+        <button class="custom-btn" onclick="closeAllMenus()" style="margin-top:10px;">關閉</button>
+    </div>
+</div>
+
+<div id="victory-screen">
+    <h1 id="victory-title" style="font-size:54px; margin:0; text-transform:uppercase; transition: 0.5s;">WINNER</h1>
+    <p id="victory-subtitle" style="font-size:22px; color:#fff; margin:20px 0 40px 0; font-weight:bold;"></p>
+    <button class="game-btn" style="width:200px; font-size:18px;" onclick="closeVictory()">返回大廳</button>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getDatabase, ref, set, get, update, onValue, onDisconnect, remove, off, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+    const firebaseConfig = { apiKey: "AIzaSyCxPppnUG864v3E2j1OzykzFmhLpsEJCSE", authDomain: "chess-1885a.firebaseapp.com", databaseURL: "https://chess-1885a-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "chess-1885a" };
+
+    let app, db, auth, currentUser;
+    let userSettings = { name: "Player_" + Math.floor(Math.random()*1000), seed: "chess", customAvatar: null };
+    
+    window.gameMode = 'lobby'; window.gameId = null; window.myColorIndex = 0; window.serverTimeOffset = 0; 
+    window.roomData = { status: 'waiting', turn: 0, players: {}, alive: [true, true, true, true], times: [0,0,0,0], lastMoveTime: 0, timeConfig: {mins: 5, inc: 5} };
+
+    const COLORS = [
+        { id: 0, name: 'Red', hex: '#d9534f', txt: '紅方' },    
+        { id: 1, name: 'Blue', hex: '#337ab7', txt: '藍方' },   
+        { id: 2, name: 'Yellow', hex: '#f0ad4e', txt: '黃方' }, 
+        { id: 3, name: 'Green', hex: '#5cb85c', txt: '綠方' }   
+    ];
+    window.COLORS = COLORS;
+
+    app = initializeApp(firebaseConfig); db = getDatabase(app); auth = getAuth(app);
+    onValue(ref(db, ".info/serverTimeOffset"), (snap) => { window.serverTimeOffset = snap.val() || 0; });
+
+    window.handleAvatarUpload = function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const cvs = document.createElement('canvas');
+                const ctx = cvs.getContext('2d');
+                const MAX_SIZE = 128; 
+                let w = img.width, h = img.height;
+                if (w > h) { if (w > MAX_SIZE) { h *= MAX_SIZE/w; w = MAX_SIZE; } } 
+                else { if (h > MAX_SIZE) { w *= MAX_SIZE/h; h = MAX_SIZE; } }
+                cvs.width = w; cvs.height = h;
+                ctx.drawImage(img, 0, 0, w, h);
+                userSettings.customAvatar = cvs.toDataURL('image/jpeg', 0.8);
+                document.getElementById('avatar-preview-img').src = userSettings.customAvatar;
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    signInAnonymously(auth);
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            currentUser = user;
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('ui').style.display = 'block';
+            updateProfileUI();
+            window.SpriteManager.initSprites(); 
+            window.engine.initBoard(); 
+            window.renderer.resize();    
+        }
+    });
+
+    function updateProfileUI() {
+        document.getElementById('user-name').innerText = userSettings.name;
+        document.getElementById('edit-name').value = userSettings.name;
+        document.getElementById('avatar-seed').value = userSettings.seed;
+        let previewSrc = userSettings.customAvatar ? userSettings.customAvatar : `https://api.dicebear.com/7.x/bottts/svg?seed=${userSettings.seed}`;
+        document.getElementById('avatar-preview-img').src = previewSrc;
+        document.getElementById('hud-avatar').src = previewSrc;
+    }
+
+    window.saveProfile = () => {
+        userSettings.name = document.getElementById('edit-name').value || "Player";
+        userSettings.seed = document.getElementById('avatar-seed').value || "chess";
+        updateProfileUI();
+        closeAllMenus();
+        if(window.gameId && window.myColorIndex >= 0) {
+            update(ref(db, `games4p/${window.gameId}/players/${window.myColorIndex}`), { name: userSettings.name, seed: userSettings.seed, customAvatar: userSettings.customAvatar || null });
+        }
+    };
+
+    document.getElementById('btn-practice').onclick = () => {
+        window.gameMode = 'practice'; window.myColorIndex = 0; 
+        let mins = parseInt(document.getElementById('time-mins').value) || 5, inc = parseInt(document.getElementById('time-inc').value) || 5, ms = mins * 60 * 1000;
+        window.TimeManager.updateFromServer({ times: [ms, ms, ms, ms], lastMoveTime: Date.now(), timeConfig: { mins: mins, inc: inc } });
+        window.roomData.status = 'playing'; window.engine.initBoard();
+        document.getElementById('lobby-buttons').style.display = 'none'; document.getElementById('btn-exit-practice').style.display = 'block'; document.getElementById('room-display').innerText = '單機沙盒模式';
+        closeAllMenus();
+    };
+
+    document.getElementById('btn-exit-practice').onclick = () => {
+        window.gameMode = 'lobby'; window.engine.initBoard();
+        document.getElementById('lobby-buttons').style.display = 'block'; document.getElementById('btn-exit-practice').style.display = 'none'; document.getElementById('room-display').innerText = '閒置中';
+        window.roomData.status = 'waiting'; 
+    };
+
+    document.getElementById('btn-create').onclick = () => {
+        window.gameMode = 'multiplayer'; window.gameId = Math.floor(1000 + Math.random() * 9000).toString(); window.engine.initBoard();
+        let mins = parseInt(document.getElementById('time-mins').value) || 5, inc = parseInt(document.getElementById('time-inc').value) || 5, ms = mins * 60 * 1000;
+        set(ref(db, 'games4p/' + window.gameId), { status: 'waiting', turn: 0, boardStr: JSON.stringify(window.engine.board), alive: [true, true, true, true], timeConfig: { mins: mins, inc: inc }, times: [ms, ms, ms, ms], lastMoveTime: serverTimestamp(), players: { 0: { uid: currentUser.uid, name: userSettings.name, seed: userSettings.seed, customAvatar: userSettings.customAvatar || null } } }).then(() => {
+            window.myColorIndex = 0; listenToRoom(); alert(`✅ 房間已建立！請朋友輸入房號：${window.gameId}`);
+            onDisconnect(ref(db, `games4p/${window.gameId}/players/0`)).remove();
+        });
+    };
+
+    document.getElementById('btn-join').onclick = () => {
+        const id = prompt('請輸入 4 位數房號：'); if (!id) return;
+        get(ref(db, 'games4p/' + id)).then((snapshot) => {
+            if (!snapshot.exists()) return alert("❌ 找不到房間！"); const data = snapshot.val(); if (data.status !== 'waiting') return alert("❌ 遊戲已開始或結束！");
+            let assigned = -1; for(let i=0; i<4; i++) { if(!data.players[i]) { assigned = i; break; } }
+            if(assigned === -1) return alert("❌ 房間已滿！");
+            window.gameMode = 'multiplayer'; window.myColorIndex = assigned; window.gameId = id;
+            update(ref(db, `games4p/${id}/players/${assigned}`), { uid: currentUser.uid, name: userSettings.name, seed: userSettings.seed, customAvatar: userSettings.customAvatar || null }).then(() => {
+                onDisconnect(ref(db, `games4p/${id}/players/${assigned}`)).remove();
+                if (Object.keys(data.players || {}).length === 3) update(ref(db, `games4p/${id}`), { status: 'playing', lastMoveTime: serverTimestamp() });
+                listenToRoom(); 
+            });
+        });
+    };
+
+    document.getElementById('btn-leave').onclick = () => {
+        if (!confirm("確定要退出房間嗎？")) return;
+        remove(ref(db, `games4p/${window.gameId}/players/${window.myColorIndex}`)); off(ref(db, 'games4p/' + window.gameId));
+        window.gameMode = 'lobby'; window.gameId = null; window.myColorIndex = 0;
+        document.getElementById('room-display').innerText = `閒置中`; document.getElementById('lobby-buttons').style.display = 'block'; document.getElementById('btn-leave').style.display = 'none';
+        window.roomData.status = 'waiting'; window.engine.initBoard(); 
+    };
+
+    function listenToRoom() {
+        document.getElementById('lobby-buttons').style.display = 'none'; document.getElementById('btn-leave').style.display = 'block';
+        onValue(ref(db, 'games4p/' + window.gameId), (snapshot) => {
+            const data = snapshot.val(); if(!data) { alert("房間已被關閉"); document.getElementById('btn-leave').click(); return; }
+            window.roomData = data; window.roomData.players = data.players || {};
+            document.getElementById('room-display').innerText = `房號：${window.gameId} (${data.status === 'playing' ? '對戰中' : '等候玩家 ' + Object.keys(window.roomData.players).length + '/4'})`;
+            if (data.boardStr && data.status === 'playing') {
+                window.engine.board = JSON.parse(data.boardStr); window.engine.currentTurn = data.turn; window.engine.alive = data.alive || [true, true, true, true];
+                window.TimeManager.updateFromServer(data);
+                const activePlayers = window.engine.alive.map((a, i) => a ? i : -1).filter(i => i !== -1);
+                if(activePlayers.length <= 1) window.showVictory(activePlayers.length === 1 ? activePlayers[0] : window.engine.currentTurn);
+            }
+        });
+    }
+
+    window.toggleMenu = () => { document.getElementById('menu-panel').classList.toggle('mobile-visible'); document.getElementById('menu-backdrop').classList.toggle('active'); };
+    window.closeAllMenus = () => { document.getElementById('custom-panel').classList.remove('active'); document.getElementById('menu-backdrop').classList.remove('active'); document.getElementById('menu-panel').classList.remove('mobile-visible'); };
+
+    window.showVictory = (colorId) => {
+        const screen = document.getElementById('victory-screen'); screen.style.display = 'flex';
+        document.getElementById('victory-title').style.color = COLORS[colorId].hex; document.getElementById('victory-title').style.textShadow = `0 0 30px ${COLORS[colorId].hex}`;
+        document.getElementById('victory-subtitle').innerText = `${COLORS[colorId].txt} 指揮官稱霸了棋盤！`; window.roomData.status = 'finished';
+    };
+    window.closeVictory = () => { document.getElementById('victory-screen').style.display = 'none'; if (window.gameMode === 'multiplayer') document.getElementById('btn-leave').click(); else if (window.gameMode === 'practice') document.getElementById('btn-exit-practice').click(); };
+
+    window.getServerTimestamp = serverTimestamp; window.getDbRef = ref; window.getDbUpdate = update; window.getDbInstance = () => db;
+    // =========================================
+    // 🖼️ 離屏渲染快取與頭像管理器
+    // =========================================
+    window.AvatarManager = {
+        images: {},
+        getAvatar(seed, customBase64) {
+            const key = customBase64 ? customBase64 : (seed || 'default');
+            if (!this.images[key]) {
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.onload = () => { if (window.renderer) window.renderer.draw(); };
+                img.src = customBase64 ? customBase64 : `https://api.dicebear.com/7.x/bottts/svg?seed=${seed}`;
+                this.images[key] = img;
+            }
+            return this.images[key];
+        }
+    };
+
+    window.SpriteManager = {
+        sprites: {},
+        initSprites() {
+            const res = 128; 
+            const icons = { 'K':'♚\uFE0E','Q':'♛\uFE0E','R':'♜\uFE0E','B':'♝\uFE0E','N':'♞\uFE0E','P':'♟\uFE0E' };
+            for (let c = 0; c < 4; c++) {
+                for (let type in icons) {
+                    const offCanvas = document.createElement('canvas'); offCanvas.width = res; offCanvas.height = res;
+                    const octx = offCanvas.getContext('2d');
+                    // ✨ 棋子放大 (Piece Upscaling): 比例從 0.75 提升到 0.85，讓棋子更飽滿
+                    octx.font = `bold ${res * 0.85}px Arial`; octx.textAlign = 'center'; octx.textBaseline = 'middle';
+                    octx.strokeStyle = '#000'; octx.lineWidth = res * 0.05;
+                    octx.strokeText(icons[type], res/2, res/2 + 5); octx.fillStyle = COLORS[c].hex; octx.fillText(icons[type], res/2, res/2 + 5);
+                    this.sprites[`${c}_${type}`] = offCanvas;
+                }
+            }
+        }
+    };
+
+    window.TimeManager = {
+        times: [0, 0, 0, 0], lastMoveTime: 0, config: { mins: 5, inc: 5 },
+        updateFromServer(data) { this.times = data.times || [0,0,0,0]; this.lastMoveTime = data.lastMoveTime || 0; this.config = data.timeConfig || { mins: 5, inc: 5 }; },
+        getRemainingTime(colorId, isCurrentTurn, isPlaying) {
+            let timeLeft = this.times[colorId];
+            if (isPlaying && isCurrentTurn && this.lastMoveTime) { timeLeft -= Math.max(0, (Date.now() + window.serverTimeOffset) - this.lastMoveTime); }
+            return Math.max(0, timeLeft);
+        },
+        computeNewTimesAfterMove(currentTurn) {
+            let newTimes = [...this.times];
+            let elapsed = this.lastMoveTime ? Math.max(0, (Date.now() + window.serverTimeOffset) - this.lastMoveTime) : 0;
+            newTimes[currentTurn] = Math.max(0, newTimes[currentTurn] - elapsed);
+            if (newTimes[currentTurn] > 0) newTimes[currentTurn] += (this.config.inc || 0) * 1000;
+            return newTimes;
+        }
+    };
+
+    window.engine = {
+        board: [], currentTurn: 0, alive: [true, true, true, true], selectedSq: null, legalMoves: [], isMoving: false, 
+        initBoard() {
+            this.board = Array.from({length: 14}, () => Array(14).fill(null));
+            for(let r=0; r<14; r++) for(let c=0; c<14; c++) if ((r<3 && c<3) || (r<3 && c>10) || (r>10 && c<3) || (r>10 && c>10)) this.board[r][c] = 'blank';
+            const order = ['R','N','B','Q','K','B','N','R'];
+            const place = (color, sr, sc, dr, dc) => {
+                for(let i=0; i<8; i++) {
+                    this.board[sr + dr*i][sc + dc*i] = { type: order[i], color: color, moved: false };
+                    let pr = sr + dr*i, pc = sc + dc*i;
+                    if(color===0) pr-=1; else if(color===1) pc+=1; else if(color===2) pr+=1; else if(color===3) pc-=1;
+                    this.board[pr][pc] = { type: 'P', color: color, moved: false };
+                }
+            };
+            place(0, 13, 3, 0, 1); place(1, 3, 0, 1, 0); place(2, 0, 10, 0, -1); place(3, 10, 13, -1, 0);
+            this.selectedSq = null; this.legalMoves = []; this.currentTurn = 0; this.alive = [true, true, true, true]; this.isMoving = false;
+        },
+        getPseudoMoves(r, c, bState) {
+            const p = bState[r][c]; if(!p || p==='blank') return []; let moves = [];
+            const add = (nr, nc) => {
+                if(nr<0 || nr>13 || nc<0 || nc>13 || bState[nr][nc]==='blank') return false;
+                if(!bState[nr][nc]) { moves.push({r:nr, c:nc}); return true; } 
+                if(bState[nr][nc].color !== p.color) moves.push({r:nr, c:nc, cap:true}); return false; 
+            };
+            if(p.type === 'R' || p.type === 'Q') { for(let i=1; add(r+i,c); i++); for(let i=1; add(r-i,c); i++); for(let i=1; add(r,c+i); i++); for(let i=1; add(r,c-i); i++); }
+            if(p.type === 'B' || p.type === 'Q') { for(let i=1; add(r+i,c+i); i++); for(let i=1; add(r-i,c-i); i++); for(let i=1; add(r+i,c-i); i++); for(let i=1; add(r-i,c+i); i++); }
+            if(p.type === 'N') { [[-2,-1],[-2,1],[2,-1],[2,1],[-1,-2],[-1,2],[1,-2],[1,2]].forEach(m => add(r+m[0], c+m[1])); }
+            if(p.type === 'K') { [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].forEach(m => add(r+m[0], c+m[1])); }
+            if(p.type === 'P') { 
+                let dr=0, dc=0; if(p.color===0) dr=-1; else if(p.color===1) dc=1; else if(p.color===2) dr=1; else if(p.color===3) dc=-1;
+                let f1r = r+dr, f1c = c+dc;
+                if(f1r>=0 && f1r<=13 && f1c>=0 && f1c<=13 && !bState[f1r][f1c]) {
+                    moves.push({r:f1r, c:f1c}); let f2r = r+dr*2, f2c = c+dc*2;
+                    if(!p.moved && f2r>=0 && f2r<=13 && f2c>=0 && f2c<=13 && !bState[f2r][f2c]) moves.push({r:f2r, c:f2c});
+                }
+                let caps = (p.color===0 || p.color===2) ? [[dr, -1], [dr, 1]] : [[-1, dc], [1, dc]];
+                caps.forEach(cap => { let nr = r+cap[0], nc = c+cap[1]; if(nr>=0 && nr<=13 && nc>=0 && nc<=13 && bState[nr][nc] && bState[nr][nc]!=='blank' && bState[nr][nc].color !== p.color) moves.push({r:nr, c:nc, cap:true}); });
+            }
+            return moves;
+        },
+        isAttacked(r, c, targetColor, bState) {
+            for(let i=0; i<14; i++) {
+                for(let j=0; j<14; j++) {
+                    const p = bState[i][j];
+                    if(p && p!=='blank' && p.color !== targetColor) {
+                        if (p.type === 'P') {
+                            let dr=0, dc=0; if(p.color===0) dr=-1; else if(p.color===1) dc=1; else if(p.color===2) dr=1; else if(p.color===3) dc=-1;
+                            let caps = (p.color===0 || p.color===2) ? [[dr, -1], [dr, 1]] : [[-1, dc], [1, dc]];
+                            for (let cap of caps) { if (i+cap[0] === r && j+cap[1] === c) return true; }
+                        } else {
+                            if(this.getPseudoMoves(i, j, bState).some(m => m.r === r && m.c === c)) return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        },
+        getLegalMoves(r, c, activeColor) {
+            const p = this.board[r][c]; if(!p || p.color !== activeColor) return [];
+            return this.getPseudoMoves(r, c, this.board).filter(move => {
+                let targetPiece = this.board[move.r][move.c]; this.board[move.r][move.c] = this.board[r][c]; this.board[r][c] = null;
+                let kR = -1, kC = -1; for(let i=0; i<14; i++) for(let j=0; j<14; j++) { let simP = this.board[i][j]; if(simP && simP.type === 'K' && simP.color === activeColor) { kR=i; kC=j; } }
+                let isSafe = false; if(kR !== -1) isSafe = !this.isAttacked(kR, kC, activeColor, this.board);
+                this.board[r][c] = this.board[move.r][move.c]; this.board[move.r][move.c] = targetPiece;
+                return isSafe;
+            });
+        },
+        isCheckmateOrStalemate(colorId) {
+            let kR = -1, kC = -1;
+            for(let i=0; i<14; i++) for(let j=0; j<14; j++) { let p = this.board[i][j]; if(p && p.type === 'K' && p.color === colorId) { kR=i; kC=j; } }
+            if(kR===-1) return true;
+            for(let i=0; i<14; i++) for(let j=0; j<14; j++) if(this.board[i][j] && this.board[i][j].color === colorId && this.getLegalMoves(i, j, colorId).length > 0) return false;
+            return true;
+        },
+        executeMove(fromR, fromC, toR, toC) {
+            let p = this.board[fromR][fromC]; p.moved = true;
+            if(p.type === 'P' && ((p.color===0 && toR===0) || (p.color===1 && toC===13) || (p.color===2 && toR===13) || (p.color===3 && toC===0))) p.type = 'Q'; 
+            this.board[toR][toC] = p; this.board[fromR][fromC] = null; this.selectedSq = null; this.legalMoves = [];
+            let newTimes = window.TimeManager.computeNewTimesAfterMove(this.currentTurn);
+            if (newTimes[this.currentTurn] <= 0) { this.alive[this.currentTurn] = false; this.removePiecesOf(this.currentTurn); }
+            let nextTurn = this.currentTurn; let checks = 0;
+            do {
+                nextTurn = (nextTurn + 1) % 4; checks++;
+                if(this.alive[nextTurn]) { if (newTimes[nextTurn] <= 0 || this.isCheckmateOrStalemate(nextTurn)) { this.alive[nextTurn] = false; this.removePiecesOf(nextTurn); } }
+            } while(!this.alive[nextTurn] && checks < 4);
+            this.currentTurn = nextTurn;
+            if (window.gameMode === 'practice') {
+                window.TimeManager.updateFromServer({ times: newTimes, lastMoveTime: Date.now() + window.serverTimeOffset });
+                const active = this.alive.filter(a=>a).length; if(active <= 1) window.showVictory(this.alive.findIndex(a=>a) !== -1 ? this.alive.findIndex(a=>a) : this.currentTurn);
+            } else if (window.gameMode === 'multiplayer' && window.gameId) {
+                window.getDbUpdate(window.getDbRef(window.getDbInstance(), 'games4p/' + window.gameId), { boardStr: JSON.stringify(this.board), turn: this.currentTurn, alive: this.alive, times: newTimes, lastMoveTime: window.getServerTimestamp() });
+            }
+        },
+        removePiecesOf(colorId) { for(let r=0; r<14; r++) for(let c=0; c<14; c++) if(this.board[r][c] && this.board[r][c].color === colorId) this.board[r][c] = null; }
+    };
+    // =========================================
+    // 🎨 畫布渲染與數學映射 (Canvas UI Alignment Refactoring)
+    // =========================================
+    const canvas = document.getElementById('chess-canvas');
+    const ctx = canvas.getContext('2d');
+    window.renderer = {
+        tileSize: 42, offset: {x:0, y:0}, zoom: 1, isDragging: false, dragStart: {x:0, y:0},
+
+        getVisualCoord(r, c) {
+            let vx = c, vy = r;
+            if (window.myColorIndex === 1) { vx = r; vy = 13 - c; } 
+            else if (window.myColorIndex === 2) { vx = 13 - c; vy = 13 - r; } 
+            else if (window.myColorIndex === 3) { vx = 13 - r; vy = c; } 
+            return { vx, vy };
+        },
+
+        getLogicalCoord(vx, vy) {
+            if (window.myColorIndex === 1) return { r: vx, c: 13 - vy };
+            if (window.myColorIndex === 2) return { r: 13 - vy, c: 13 - vx };
+            if (window.myColorIndex === 3) return { r: 13 - vx, c: vy };
+            return { r: vy, c: vx }; 
+        },
+
+        resize() {
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr; canvas.height = window.innerHeight * dpr;
+            canvas.style.width = `${window.innerWidth}px`; canvas.style.height = `${window.innerHeight}px`;
+            ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.scale(dpr, dpr);
+            this.zoom = window.innerWidth < 600 ? 0.6 : 0.9;
+        },
+
+        draw() {
+            if (!window.engine || !window.engine.board || window.engine.board.length === 0) return;
+
+            ctx.fillStyle = '#222222'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(window.innerWidth/2 + this.offset.x, window.innerHeight/2 + this.offset.y);
+            ctx.scale(this.zoom, this.zoom);
+
+            const ts = this.tileSize;
+            const bSize = 14 * ts;
+            const bCenter = bSize / 2;
+            ctx.translate(-bCenter, -bCenter);
+
+            // 畫棋盤與棋子
+            for(let r=0; r<14; r++) {
+                for(let c=0; c<14; c++) {
+                    if(window.engine.board[r][c] === 'blank') continue;
+                    
+                    const {vx, vy} = this.getVisualCoord(r, c);
+                    const x = vx * ts;
+                    const y = vy * ts;
+
+                    const isLight = (r+c)%2 === 0;
+                    ctx.fillStyle = isLight ? '#eeeed2' : '#769656'; 
+                    
+                    if(window.engine.selectedSq && window.engine.selectedSq.r === r && window.engine.selectedSq.c === c) ctx.fillStyle = 'rgba(246, 246, 105, 0.8)'; 
+                    ctx.fillRect(x, y, ts, ts);
+
+                    if(window.engine.legalMoves.some(m => m.r === r && m.c === c)) {
+                        ctx.beginPath();
+                        ctx.arc(x + ts/2, y + ts/2, ts*0.15, 0, Math.PI*2);
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'; ctx.fill();
+                    }
+
+                    const p = window.engine.board[r][c];
+                    if(p && p !== 'blank') {
+                        const spriteKey = `${p.color}_${p.type}`;
+                        if (window.SpriteManager.sprites[spriteKey]) {
+                            ctx.drawImage(window.SpriteManager.sprites[spriteKey], x, y, ts, ts);
+                        }
+                    }
+                }
+            }
+
+            // 畫內嵌於棋盤 3x3 挖空角落的 UI 面板
+            this.drawUIPanels();
+            ctx.restore();
+        },
+
+        drawUIPanels() {
+            const ts = this.tileSize;
+            
+            const bottomId = window.myColorIndex;
+            const leftId = (window.myColorIndex + 1) % 4;
+            const topId = (window.myColorIndex + 2) % 4;
+            const rightId = (window.myColorIndex + 3) % 4;
+
+            const corners = [
+                { id: topId,    cx: 1.5 * ts,  cy: 1.5 * ts },         // 左上角
+                { id: rightId,  cx: 12.5 * ts, cy: 1.5 * ts },         // 右上角
+                { id: leftId,   cx: 1.5 * ts,  cy: 12.5 * ts },        // 左下角
+                { id: bottomId, cx: 12.5 * ts, cy: 12.5 * ts }         // 右下角
+            ];
+
+            const isPlaying = (window.roomData && window.roomData.status === 'playing');
+
+            corners.forEach(corner => {
+                const pId = corner.id;
+                const isTurn = (window.engine.currentTurn === pId && isPlaying);
+                const isDead = !window.engine.alive[pId];
+                const colorHex = window.COLORS[pId].hex;
+
+                // ✨ UI Alignment Refactoring: 降低面板高度至 0.9，加寬確保文字容納空間
+                const boxW = 3.0 * ts; 
+                const boxH = 0.9 * ts; 
+                const barX = corner.cx - boxW / 2;
+                const barY = corner.cy - boxH / 2;
+
+                ctx.save();
+
+                // 1. 微圓角背景
+                ctx.fillStyle = isTurn ? 'rgba(230, 230, 230, 0.95)' : 'rgba(35, 35, 40, 0.9)';
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(barX, barY, boxW, boxH, 4);
+                else ctx.rect(barX, barY, boxW, boxH);
+                ctx.fill();
+
+                // 2. 彩色邊條
+                ctx.fillStyle = isDead ? '#444' : colorHex;
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(barX, barY, 6, boxH, [4, 0, 0, 4]);
+                else ctx.rect(barX, barY, 6, boxH);
+                ctx.fill();
+
+                // 準備資料
+                let seed = window.roomData.players[pId]?.seed || `bot${pId}`;
+                let customAvatar = window.roomData.players[pId]?.customAvatar || null;
+                let nameStr = window.roomData.players[pId]?.name || "Waiting...";
+                if(window.gameMode === 'practice') nameStr = window.COLORS[pId].txt;
+                let displayName = nameStr.length > 8 ? nameStr.substring(0, 8) + '..' : nameStr;
+
+                let timeLeft = window.TimeManager.getRemainingTime(pId, isTurn, isPlaying);
+                const mins = Math.floor(timeLeft / 60000);
+                const secs = Math.floor((timeLeft % 60000) / 1000).toString().padStart(2, '0');
+                const timeStr = isDead ? "OUT" : `${mins}:${secs}`;
+
+                // 3. ✨ 頭像完美內嵌：留 4px (Top/Bottom padding)
+                const avatarSize = boxH - 8; 
+                let avatarX = barX + 10;
+                let avatarY = barY + 4;
+                
+                // 4. 文字靠齊
+                let textX = avatarX + avatarSize + 8;
+                let nameY = barY + boxH * 0.35; // 上半部
+                let timeY = barY + boxH * 0.75; // 下半部
+                
+                // 畫出頭像
+                if (isDead) ctx.globalAlpha = 0.3;
+                let img = window.AvatarManager.getAvatar(seed, customAvatar);
+                if (img.complete && img.naturalWidth > 0) {
+                    ctx.drawImage(img, avatarX, avatarY, avatarSize, avatarSize);
+                } else {
+                    ctx.fillStyle = '#555';
+                    ctx.fillRect(avatarX, avatarY, avatarSize, avatarSize);
+                }
+                ctx.globalAlpha = 1.0;
+
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+
+                // 畫出姓名
+                ctx.fillStyle = isTurn ? '#222' : '#bbb';
+                ctx.font = `bold ${ts * 0.28}px sans-serif`;
+                ctx.fillText(displayName, textX, nameY);
+
+                // 畫出時間
+                ctx.fillStyle = isTurn ? '#000' : (isDead ? '#666' : '#fff');
+                ctx.font = `bold ${ts * 0.42}px monospace`;
+                ctx.fillText(timeStr, textX, timeY);
+
+                ctx.restore();
+            });
+        }
+    };
+
+    window.addEventListener('resize', () => window.renderer.resize());
+
+    let lastFrameTime = 0;
+    function animate(timestamp) {
+        if (timestamp - lastFrameTime > 16) { 
+            window.renderer.draw();
+            lastFrameTime = timestamp;
+        }
+        requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+
+    canvas.addEventListener('mousedown', e => { window.renderer.isDragging = true; window.renderer.dragStart = {x: e.clientX - window.renderer.offset.x, y: e.clientY - window.renderer.offset.y}; });
+    canvas.addEventListener('mousemove', e => { if(window.renderer.isDragging) { window.renderer.offset.x = e.clientX - window.renderer.dragStart.x; window.renderer.offset.y = e.clientY - window.renderer.dragStart.y; }});
+    canvas.addEventListener('mouseup', () => window.renderer.isDragging = false);
+    canvas.addEventListener('wheel', e => { window.renderer.zoom -= e.deltaY * 0.001; window.renderer.zoom = Math.max(0.4, Math.min(window.renderer.zoom, 3)); });
+
+    let touchStartDist = 0;
+    canvas.addEventListener('touchstart', e => {
+        if(e.touches.length === 1) { window.renderer.isDragging = true; window.renderer.dragStart = {x: e.touches[0].clientX - window.renderer.offset.x, y: e.touches[0].clientY - window.renderer.offset.y}; }
+        else if(e.touches.length === 2) { touchStartDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }
+    }, {passive: false});
+    canvas.addEventListener('touchmove', e => {
+        if(e.touches.length === 1 && window.renderer.isDragging) { 
+            window.renderer.offset.x = e.touches[0].clientX - window.renderer.dragStart.x; window.renderer.offset.y = e.touches[0].clientY - window.renderer.dragStart.y; 
+        } else if(e.touches.length === 2) { 
+            e.preventDefault(); 
+            const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); 
+            window.renderer.zoom *= (dist / touchStartDist); 
+            window.renderer.zoom = Math.max(0.4, Math.min(window.renderer.zoom, 3));
+            touchStartDist = dist; 
+        }
+    }, {passive: false});
+    canvas.addEventListener('touchend', () => window.renderer.isDragging = false);
+
+    canvas.addEventListener('click', e => {
+        if (window.gameMode === 'lobby') return; 
+
+        let activeColor;
+        if (window.gameMode === 'multiplayer') {
+            if (window.roomData.status !== 'playing' || window.engine.currentTurn !== window.myColorIndex || !window.engine.alive[window.myColorIndex]) return;
+            activeColor = window.myColorIndex;
+        } else if (window.gameMode === 'practice') {
+            if (window.roomData.status !== 'playing') return;
+            activeColor = window.engine.currentTurn;
+        }
+
+        let x = e.clientX - (window.innerWidth/2 + window.renderer.offset.x);
+        let y = e.clientY - (window.innerHeight/2 + window.renderer.offset.y);
+        x /= window.renderer.zoom; y /= window.renderer.zoom;
+
+        if (window.myColorIndex > 0) {
+            const rad = (-window.myColorIndex * 90) * Math.PI/180;
+            const nx = x*Math.cos(rad) - y*Math.sin(rad);
+            const ny = x*Math.sin(rad) + y*Math.cos(rad);
+            x = nx; y = ny;
+        }
+
+        const bCenter = (14 * window.renderer.tileSize) / 2;
+        x += bCenter; y += bCenter;
+
+        const vx = Math.floor(x / window.renderer.tileSize), vy = Math.floor(y / window.renderer.tileSize);
+        if(vx<0 || vx>=14 || vy<0 || vy>=14) return;
+
+        const logicalSq = window.renderer.getLogicalCoord(vx, vy);
+        const {r, c} = logicalSq;
+
+        if(window.engine.isMoving) return;
+
+        if(window.engine.selectedSq && window.engine.legalMoves.some(m => m.r === r && m.c === c)) {
+            window.engine.isMoving = true;
+            window.engine.executeMove(window.engine.selectedSq.r, window.engine.selectedSq.c, r, c);
+            window.engine.isMoving = false;
+        } else {
+            const p = window.engine.board[r][c];
+            if(p && p !== 'blank' && p.color === activeColor) {
+                window.engine.selectedSq = {r, c};
+                window.engine.legalMoves = window.engine.getLegalMoves(r, c, activeColor);
+            } else {
+                window.engine.selectedSq = null; window.engine.legalMoves = [];
+            }
+        }
+    });
+
+</script>
+</body>
+</html>
