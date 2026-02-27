@@ -2492,16 +2492,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>迷你彈射足球 精裝版</title>
+    <title>Pocket Soccer 經典旗艦版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Noto+Sans+TC:wght@700;900&display=swap');
 
-        /* 鎖定全螢幕 */
+        /* 鎖定全螢幕，防止手機滑動與越界 */
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            background-color: #f3a683; 
+            background-color: #a3c644; /* 經典草綠色背景 */
             font-family: 'Fredoka One', 'Noto Sans TC', sans-serif;
             display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
             overflow: hidden; position: fixed; inset: 0; touch-action: none; user-select: none; -webkit-user-select: none;
@@ -2515,82 +2515,81 @@
             transition: top 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); text-align: center; white-space: nowrap;
         }
 
-        /* ===== 主選單 UI (保持專業扁平) ===== */
+        /* ===== 經典主選單 UI (還原截圖) ===== */
         #menu-container {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            height: 100%; width: 100%; z-index: 50; position: absolute; 
-            background-color: #a4c639; 
+            height: 100%; width: 100%; z-index: 50; position: absolute; background-color: #a3c644; 
         }
         .menu-title {
-            color: white; font-size: 48px; margin-bottom: 20px;
-            text-shadow: 3px 3px 0px rgba(0,0,0,0.15); letter-spacing: 2px;
-            display: flex; flex-direction: column; align-items: center;
+            color: white; font-size: 52px; margin-bottom: 20px;
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.1); letter-spacing: 2px; text-align: center; line-height: 1.1;
         }
-        .menu-subtitle {
-            font-size: 16px; color: #f1f2f6; font-family: 'Noto Sans TC', sans-serif;
-            text-align: center; margin-bottom: 50px; line-height: 1.5; font-weight: bold;
-        }
+        .menu-subtitle { font-size: 16px; color: white; font-family: 'Noto Sans TC', sans-serif; text-align: center; margin-bottom: 50px; font-weight: bold; opacity: 0.95; line-height: 1.6;}
         
         .menu-btn {
-            width: 280px; padding: 15px 20px; font-size: 24px; border: none; border-radius: 12px;
+            width: 280px; padding: 18px 20px; font-size: 22px; border: none; border-radius: 12px;
             cursor: pointer; margin-bottom: 20px; transition: transform 0.1s;
             font-family: 'Fredoka One', 'Noto Sans TC', sans-serif; color: white; 
             display: flex; align-items: center; justify-content: center; gap: 15px;
-            box-shadow: 0 6px 0px rgba(0,0,0,0.2);
+            box-shadow: 0 6px 0px rgba(0,0,0,0.15);
         }
         .menu-btn:active { transform: translateY(6px); box-shadow: 0 0px 0px rgba(0,0,0,0); }
-        .btn-single { background-color: #54a0ff; }
-        .btn-multi { background-color: #ff6b6b; }
+        .btn-single { background-color: #66a5e1; box-shadow: 0 6px 0px #4e8bc1;}
+        .btn-multi { background-color: #ef6c6b; box-shadow: 0 6px 0px #cf5453;}
         
         .input-group { display: flex; width: 280px; gap: 10px; margin-bottom: 20px; }
         .input-box {
-            flex-grow: 1; padding: 15px; font-size: 20px; border-radius: 12px; border: none;
-            text-align: center; font-family: 'Fredoka One', sans-serif; outline: none;
-            box-shadow: inset 0 4px 6px rgba(0,0,0,0.1);
+            flex-grow: 1; padding: 15px; font-size: 18px; border-radius: 12px; border: none;
+            text-align: center; font-family: 'Fredoka One', 'Noto Sans TC', sans-serif; outline: none; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); color: #555;
         }
         .btn-join {
-            width: 80px; padding: 15px; background-color: #1dd1a1; color: white; 
+            width: 80px; padding: 15px; background-color: #6fd0a1; color: white; 
             border: none; border-radius: 12px; font-size: 20px; font-weight: bold;
-            box-shadow: 0 6px 0px rgba(0,0,0,0.2); cursor: pointer;
+            box-shadow: 0 6px 0px #57b385; cursor: pointer;
         }
         .btn-join:active { transform: translateY(6px); box-shadow: 0 0px 0px rgba(0,0,0,0); }
 
-        /* ===== 遊戲畫面 UI (全新升級) ===== */
-        #game-ui { display: none; flex-direction: column; align-items: center; width: 100%; height: 100%; position: relative; }
+        /* ===== 遊戲畫面與頂部欄 ===== */
+        #game-ui { display: none; flex-direction: column; align-items: center; width: 100%; height: 100%; position: relative; background-color: #f4a27a;}
         
-        /* 🌟 全新整合式頂部欄 */
         #top-bar {
-            width: 100%; height: 70px; background: rgba(0,0,0,0.3);
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 0 15px; box-sizing: border-box; z-index: 10;
-            backdrop-filter: blur(5px); border-bottom: 2px solid rgba(255,255,255,0.1);
+            width: 100%; max-width: 420px; display: flex; align-items: center; justify-content: space-between;
+            padding: 15px 15px 5px 15px; box-sizing: border-box; z-index: 10;
         }
+        
         #btn-exit {
-            width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 12px;
-            display: flex; justify-content: center; align-items: center; color: white;
-            font-size: 20px; font-weight: bold; cursor: pointer; border: 2px solid rgba(255,255,255,0.3);
-            transition: all 0.2s;
+            width: 55px; height: 55px; background: white; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; color: #ff6b6b;
+            font-size: 26px; font-weight: 900; cursor: pointer; border: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15); transition: all 0.1s; flex-shrink: 0;
+            padding-bottom: 4px; 
         }
-        #btn-exit:active { background: rgba(255,255,255,0.4); transform: scale(0.95); }
+        #btn-exit:active { transform: translateY(4px); box-shadow: 0 0 0 rgba(0,0,0,0); }
 
-        /* 🌟 升級版計分板 */
         #scoreboard {
-            display: flex; align-items: center; gap: 15px;
+            background: #503d3f; color: white; width: 250px; height: 60px; border-radius: 30px;
+            display: flex; justify-content: space-between; align-items: center; padding: 0 25px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.15); margin: 0 auto;
         }
-        .score-badge {
-            display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.4);
-            padding: 5px 15px; border-radius: 20px; border: 2px solid rgba(255,255,255,0.1);
-        }
-        .team-icon { font-size: 18px; }
-        .score-num { font-size: 24px; color: white; font-family: 'Fredoka One'; }
-        .score-vs { font-size: 18px; color: rgba(255,255,255,0.6); font-family: 'Fredoka One'; }
-        .team-red { color: #ff6b6b; }
-        .team-blue { color: #4ea8de; }
+        .score-col { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
+        .team-name { font-size: 13px; font-family: 'Fredoka One', sans-serif; text-transform: uppercase; margin-bottom: 4px; }
+        .score-red { color: #ff6b6b; font-size: 28px; font-family: 'Fredoka One', cursive;}
+        .score-blue { color: #4ea8de; font-size: 28px; font-family: 'Fredoka One', cursive;}
+        .score-vs { font-size: 22px; color: #dcdde1; font-family: 'Fredoka One', cursive; margin-top: 5px;}
 
-        #scaling-wrapper { position: relative; width: 400px; height: 720px; transform-origin: top center; margin-top: 10px;}
+        /* 🌟 畫面置中容器 (完美解決偏下問題) */
+        #canvas-centerer {
+            flex-grow: 1; width: 100%; display: flex; align-items: center; justify-content: center;
+        }
+
+        #scaling-wrapper { 
+            position: relative; width: 400px; height: 720px; 
+            transform-origin: center center;
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); 
+        }
         canvas { display: block; width: 100%; height: 100%; outline: none; }
 
-        /* 🌟 精緻化橫幅 */
         .turn-banner {
             position: absolute; padding: 12px 35px; border-radius: 30px; font-size: 22px; font-weight: normal;
             color: white; z-index: 20; transition: all 0.3s ease;
@@ -2598,24 +2597,26 @@
             border: 3px solid rgba(255,255,255,0.3); text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
         .turn-banner.active { opacity: 1; transform: translateX(-50%) scale(1); }
-        #bot-banner { top: 100px; background: linear-gradient(to right, #4a3b32, #635147); }
-        #player-banner { bottom: 100px; background: linear-gradient(to right, #ff6b6b, #ff8e8e); }
+        #bot-banner { top: 90px; background: linear-gradient(to right, #4a3b32, #635147); }
+        #player-banner { bottom: 90px; background: linear-gradient(to right, #ff6b6b, #ff8e8e); }
         
         #waiting-overlay {
-            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(255,255,255,0.95); padding: 30px 40px; border-radius: 25px;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.3); text-align: center; z-index: 30;
-            display: none; flex-direction: column; align-items: center; border: 5px solid #ff6b6b;
+            position: absolute; inset: 0; background: rgba(244, 162, 122, 0.9);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 30;
+            backdrop-filter: blur(5px);
         }
-        #waiting-room-id { font-size: 48px; color: #ff6b6b; margin: 15px 0; letter-spacing: 4px; font-family: 'Fredoka One';}
-        .waiting-text { font-size: 18px; color: #2d3436; font-family: 'Noto Sans TC'; font-weight: bold;}
-        .waiting-sub { font-size: 14px; color: #636e72; margin-top: 10px; }
+        .waiting-box {
+            background: #fff; padding: 40px; border-radius: 30px; text-align: center; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2); border: 6px solid #503d3f; width: 80%; max-width: 320px;
+        }
+        #waiting-room-id { font-size: 56px; color: #ff6b6b; margin: 15px 0; letter-spacing: 5px; font-family: 'Fredoka One';}
+        .waiting-text { font-size: 20px; color: #503d3f; font-family: 'Noto Sans TC'; font-weight: 900;}
 
         #win-modal {
             display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; flex-direction: column; justify-content: center; align-items: center;
         }
-        .win-box { background: #fff; padding: 40px; border-radius: 30px; text-align: center; box-shadow: 0 25px 60px rgba(0,0,0,0.5); border: 8px solid #2d3436; width: 85%; max-width: 320px; }
-        #win-text { font-size: 42px; color: #ff6b6b; margin-bottom: 30px; text-transform: uppercase; text-shadow: 2px 2px 0 rgba(0,0,0,0.1);}
+        .win-box { background: #fff; padding: 40px; border-radius: 30px; text-align: center; box-shadow: 0 25px 60px rgba(0,0,0,0.5); border: 8px solid #503d3f; width: 85%; max-width: 320px; }
+        #win-text { font-size: 46px; color: #ff6b6b; margin-bottom: 30px; text-transform: uppercase; text-shadow: 2px 2px 0 rgba(0,0,0,0.1);}
     </style>
 </head>
 <body>
@@ -2623,16 +2624,10 @@
     <div id="toast">提示訊息</div>
 
     <div id="menu-container">
-        <div class="menu-title">
-            ⚽ POCKET<br>SOCCER
-        </div>
-        <div class="menu-subtitle">
-            拖動球員控制你的小隊，<br>率先獲得 3 粒進球贏得勝利！
-        </div>
-
+        <div class="menu-title">⚽ POCKET<br>SOCCER</div>
+        <div class="menu-subtitle">拖動球員控制你的小隊，<br>率先獲得 3 粒進球贏得勝利！</div>
         <button class="menu-btn btn-single" id="btn-single">👤 VS 🤖</button>
         <button class="menu-btn btn-multi" id="btn-create">👤 VS 👤 (建立)</button>
-        
         <div class="input-group">
             <input type="text" id="input-room" class="input-box" placeholder="輸入房號加入..." maxlength="4">
             <button class="btn-join" id="btn-join">GO</button>
@@ -2641,30 +2636,34 @@
 
     <div id="game-ui">
         <div id="top-bar">
-            <button id="btn-exit">✕</button>
+            <button id="btn-exit">＜</button>
             <div id="scoreboard">
-                <div class="score-badge team-red">
-                    <span class="team-icon">🛡️</span>
-                    <span class="score-num" id="score-red">0</span>
+                <div class="score-col">
+                    <span class="team-name" style="color: #ff6b6b;">YOU</span>
+                    <span class="score-red" id="score-red">0</span>
                 </div>
                 <span class="score-vs">VS</span>
-                <div class="score-badge team-blue">
-                    <span class="score-num" id="score-blue">0</span>
-                    <span class="team-icon">🛡️</span>
+                <div class="score-col">
+                    <span class="team-name" style="color: #4ea8de;" id="p2-name">BOT</span>
+                    <span class="score-blue" id="score-blue">0</span>
                 </div>
             </div>
-            <div style="width: 40px;"></div> </div>
+            <div style="width: 55px;"></div> 
+        </div>
 
-        <div id="scaling-wrapper">
-            <canvas id="game-canvas"></canvas>
-            
-            <div class="turn-banner" id="bot-banner">OPPONENT THINKING...</div>
-            <div class="turn-banner" id="player-banner">YOUR TURN!</div>
-            
-            <div id="waiting-overlay">
-                <div class="waiting-text">正在等待對手加入...</div>
-                <div id="waiting-room-id">0000</div>
-                <div class="waiting-sub">請將上方的房號告訴你的朋友</div>
+        <div id="canvas-centerer">
+            <div id="scaling-wrapper">
+                <canvas id="game-canvas"></canvas>
+                <div class="turn-banner" id="bot-banner">OPPONENT THINKING...</div>
+                <div class="turn-banner" id="player-banner">YOUR TURN!</div>
+                
+                <div id="waiting-overlay">
+                    <div class="waiting-box">
+                        <div class="waiting-text">等待對手加入...</div>
+                        <div id="waiting-room-id">0000</div>
+                        <button class="menu-btn btn-multi" style="width: 100%; font-size: 18px; margin-bottom: 0;" id="btn-cancel-wait">取消並退出</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -2704,19 +2703,29 @@
         } catch (e) { console.warn("Firebase 初始化失敗"); }
 
         const scaleWrapper = document.getElementById('scaling-wrapper');
-        let currentScale = 1;
+        let baseScale = 1;
+        let activeScale = 1; 
+        
         function resizeGame() {
-            const topBarHeight = document.getElementById('top-bar').offsetHeight;
-            const availableHeight = window.innerHeight - topBarHeight - 20; 
-            const availableWidth = window.innerWidth - 20;
-            currentScale = Math.min(availableWidth / 400, availableHeight / 720);
-            scaleWrapper.style.transform = `scale(${currentScale})`;
+            const topBarHeight = document.getElementById('top-bar').offsetHeight || 80;
+            // 計算真正的剩餘空間，讓畫面在中心縮放
+            const availableHeight = window.innerHeight - topBarHeight - 10; 
+            const availableWidth = window.innerWidth - 10;
+            baseScale = Math.min(availableWidth / 400, availableHeight / 720);
+            activeScale = baseScale;
+            scaleWrapper.style.transform = `scale(${activeScale})`;
         }
         window.addEventListener('resize', resizeGame);
         setTimeout(resizeGame, 100);
 
+        function setCameraZoom(zoomedOut) {
+            activeScale = zoomedOut ? baseScale * 0.88 : baseScale; 
+            scaleWrapper.style.transform = `scale(${activeScale})`;
+        }
+
         let gameMode = 'single', currentRoom = null, myTeam = 'red', currentTurn = 'red', isMoving = false;
         let roomStatus = 'ended'; 
+        let isResettingBall = false; 
         let scores = { red: 0, blue: 0 };
         const WIN_SCORE = 3;
         let opponentAim = null; 
@@ -2726,12 +2735,23 @@
         
         const gameWidth = 400, gameHeight = 720;
         const fieldTop = 80, fieldBottom = 640; 
-        const goalW = 150, goalH = 45;
+        const goalW = 140, goalH = 40;
         const leftW = (gameWidth - goalW) / 2;
 
         let engine, render, runner, ball, players = [];
         let trails = [];
+        let particles = []; 
         let bannerTimer = null;
+
+        // 🌟 動態陣型庫 (Formations)
+        const formations = [
+            // 陣型 0: 經典 2-1-2
+            [ {x: 0, y: 140}, {x: -80, y: 220}, {x: 80, y: 220}, {x: -60, y: 50}, {x: 60, y: 50} ],
+            // 陣型 1: 防守鐵桶 3-2
+            [ {x: 0, y: 50}, {x: -75, y: 80}, {x: 75, y: 80}, {x: -50, y: 200}, {x: 50, y: 200} ],
+            // 陣型 2: 攻擊三角 1-3-1
+            [ {x: 0, y: 40}, {x: -80, y: 130}, {x: 0, y: 140}, {x: 80, y: 130}, {x: 0, y: 230} ]
+        ];
 
         function initGame() {
             if(engine) { Matter.Engine.clear(engine); Render.stop(render); Runner.stop(runner); document.getElementById('game-canvas').remove(); }
@@ -2739,10 +2759,25 @@
             const canvasObj = document.createElement('canvas'); canvasObj.id = 'game-canvas';
             scaleWrapper.insertBefore(canvasObj, scaleWrapper.firstChild);
 
-            engine = Engine.create(); engine.world.gravity.y = 0; 
+            engine = Engine.create(); 
+            engine.world.gravity.y = 0; 
+            engine.positionIterations = 12; 
+            engine.velocityIterations = 12;
+
             render = Render.create({ canvas: canvasObj, engine: engine, options: { width: gameWidth, height: gameHeight, wireframes: false, background: 'transparent' } });
 
-            createBoundaries(); resetFormation(true);
+            createBoundaries(); 
+            scores = { red: 0, blue: 0 }; updateScoreUI();
+            
+            setupPhysicsBodies(); // 建立實體
+            updateTargetPositions(); // 設定初次陣型目標
+            
+            // 讓球員瞬間就位 (不滑行)
+            Matter.Body.setPosition(ball, ball.targetPos);
+            players.forEach(p => Matter.Body.setPosition(p, p.targetPos));
+
+            isMoving = false; isResettingBall = false; currentTurn = 'red';
+            
             Events.on(render, 'afterRender', customDraw); 
             Events.on(engine, 'afterUpdate', physicsUpdate);
             
@@ -2761,7 +2796,7 @@
         function createBoundaries() {
             const wallOpts = { isStatic: true, render: { visible: false }, restitution: 0.9, friction: 0, frictionStatic: 0 };
             const postOpts = { isStatic: true, render: { visible: false }, restitution: 0.8, friction: 0, frictionStatic: 0 };
-            const thick = 100; 
+            const thick = 300; 
 
             const walls = [
                 Bodies.rectangle(-thick/2, gameHeight/2, thick, gameHeight, wallOpts), 
@@ -2782,63 +2817,93 @@
             Composite.add(engine.world, walls);
         }
 
-        function resetFormation(fullReset = false) {
+        function setupPhysicsBodies() {
             if(ball) Composite.remove(engine.world, ball);
-            players.forEach(p => Composite.remove(engine.world, p)); players = []; trails = [];
-            if(fullReset) { scores = { red: 0, blue: 0 }; updateScoreUI(); }
+            players.forEach(p => Composite.remove(engine.world, p)); players = []; trails = []; particles = [];
 
             ball = Bodies.circle(gameWidth/2, gameHeight/2, 12, { 
                 restitution: 0.9, frictionAir: 0.015, friction: 0, frictionStatic: 0, density: 0.002, render: { visible: false }, label: 'ball'
             });
             Composite.add(engine.world, ball);
 
-            const pOpts = { restitution: 0.85, frictionAir: 0.03, friction: 0, frictionStatic: 0, density: 0.05, render: { visible: false } };
+            const pOpts = { restitution: 0.9, frictionAir: 0.03, friction: 0, frictionStatic: 0, density: 0.05, render: { visible: false } };
             
-            const bluePos = [ {x: gameWidth/2, y: fieldTop + 130}, {x: gameWidth/2 - 80, y: fieldTop + 220}, {x: gameWidth/2 + 80, y: fieldTop + 220}, {x: gameWidth/2 - 70, y: fieldTop + 50}, {x: gameWidth/2 + 70, y: fieldTop + 50} ];
-            const redPos = [ {x: gameWidth/2, y: fieldBottom - 130}, {x: gameWidth/2 - 80, y: fieldBottom - 220}, {x: gameWidth/2 + 80, y: fieldBottom - 220}, {x: gameWidth/2 - 70, y: fieldBottom - 50}, {x: gameWidth/2 + 70, y: fieldBottom - 50} ];
-
-            bluePos.forEach(p => { let b = Bodies.circle(p.x, p.y, 22, pOpts); b.team = 'blue'; players.push(b); });
-            redPos.forEach(p => { let b = Bodies.circle(p.x, p.y, 22, pOpts); b.team = 'red'; players.push(b); });
+            // 先在場外生成，稍後由 updateTargetPositions 分配位置
+            for(let i=0; i<5; i++) {
+                let bBlue = Bodies.circle(-100, -100, 22, pOpts); bBlue.team = 'blue'; players.push(bBlue);
+                let bRed = Bodies.circle(-100, -100, 22, pOpts); bRed.team = 'red'; players.push(bRed);
+            }
             Composite.add(engine.world, players);
-            
-            isMoving = false; currentTurn = 'red'; 
-            if(roomStatus === 'playing') updateTurnBanner();
+        }
+
+        // 🌟 根據雙方總分，動態選擇並更新所有人的目標位置 (Target Position)
+        function updateTargetPositions() {
+            // 用總分決定陣型，保證連線雙方看到的一致
+            const formIdx = (scores.red + scores.blue) % formations.length;
+            const currentForm = formations[formIdx];
+
+            ball.targetPos = { x: gameWidth / 2, y: gameHeight / 2 };
+
+            let blueIdx = 0; let redIdx = 0;
+            players.forEach(p => {
+                if (p.team === 'blue') {
+                    p.targetPos = { x: gameWidth/2 + currentForm[blueIdx].x, y: fieldTop + currentForm[blueIdx].y };
+                    blueIdx++;
+                } else {
+                    p.targetPos = { x: gameWidth/2 + currentForm[redIdx].x, y: fieldBottom - currentForm[redIdx].y };
+                    redIdx++;
+                }
+            });
+        }
+
+        // 啟動平滑重置動畫
+        function startResetAnimation() {
+            updateTargetPositions(); // 每次重置前更新陣型
+            isResettingBall = true; isMoving = true; hideBanners();
+            Matter.Body.setStatic(ball, true);
+            players.forEach(p => Matter.Body.setStatic(p, true));
+        }
+
+        function createGoalParticles(x, y, team) {
+            const colors = team === 'red' ? ['#ff6b6b', '#ff4757', '#ffffff', '#feca57'] : ['#4ea8de', '#3498db', '#ffffff', '#00d2d3'];
+            for(let i=0; i<80; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 18, vy: (Math.random() - 0.5) * 18,
+                    life: 1.0, decay: 0.01 + Math.random() * 0.015,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: Math.random() * 8 + 4,
+                    angle: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.5
+                });
+            }
         }
 
         function customDraw() {
             const ctx = render.context; const time = engine.timing.timestamp;
             
-            // 草皮背景
             ctx.fillStyle = '#72c84b';
             ctx.beginPath(); ctx.rect(0, fieldTop, gameWidth, fieldBottom - fieldTop); ctx.fill();
-            
-            // 草皮紋路
-            ctx.fillStyle = 'rgba(0,0,0,0.05)';
+            ctx.fillStyle = 'rgba(0,0,0,0.04)';
             for(let y = fieldTop; y < fieldBottom; y += 80) { ctx.fillRect(0, y, gameWidth, 40); }
 
-            // 白色邊線
             ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 5; ctx.lineJoin = 'round';
             ctx.strokeRect(0, fieldTop, gameWidth, fieldBottom - fieldTop);
-            
-            // 中線
             ctx.beginPath(); ctx.moveTo(0, gameHeight/2); ctx.lineTo(gameWidth, gameHeight/2); ctx.stroke();
             ctx.beginPath(); ctx.arc(gameWidth/2, gameHeight/2, 50, 0, 2*Math.PI); ctx.stroke();
             ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(gameWidth/2, gameHeight/2, 8, 0, 2*Math.PI); ctx.fill();
             
-            // 繪製球門 (包含網子與門柱)
             function drawGoal(x, y, isTop) {
-                ctx.fillStyle = isTop ? 'rgba(78, 168, 222, 0.8)' : 'rgba(255, 107, 107, 0.8)'; ctx.fillRect(x, y, goalW, goalH);
-                // 球網紋路
-                ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 2; ctx.beginPath();
+                ctx.fillStyle = isTop ? 'rgba(78, 168, 222, 0.6)' : 'rgba(255, 107, 107, 0.6)'; ctx.fillRect(x, y, goalW, goalH);
+                ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.beginPath();
                 for(let i=6; i<goalW; i+=12) { ctx.moveTo(x+i, y); ctx.lineTo(x+i, y+goalH); }
                 for(let i=6; i<goalH; i+=12) { ctx.moveTo(x, y+i); ctx.lineTo(x+goalW, y+i); }
                 ctx.stroke();
-                // ㄇ字外框
+                
                 ctx.strokeStyle = '#2d3436'; ctx.lineWidth = 6; ctx.beginPath();
                 if(isTop) { ctx.moveTo(x, y+goalH); ctx.lineTo(x, y); ctx.lineTo(x+goalW, y); ctx.lineTo(x+goalW, y+goalH); } 
                 else { ctx.moveTo(x, y); ctx.lineTo(x, y+goalH); ctx.lineTo(x+goalW, y+goalH); ctx.lineTo(x+goalW, y); }
                 ctx.stroke();
-                // 門柱點
+                
                 ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#2d3436'; ctx.lineWidth = 3;
                 let postY = isTop ? y+goalH : y;
                 ctx.beginPath(); ctx.arc(x, postY, 7, 0, 2*Math.PI); ctx.fill(); ctx.stroke();
@@ -2847,27 +2912,30 @@
             drawGoal(leftW, fieldTop - goalH, true);
             drawGoal(leftW, fieldBottom, false);
 
-            // 拖尾特效
             trails.forEach(t => { ctx.globalAlpha = t.alpha; ctx.fillStyle = t.color; ctx.beginPath(); ctx.arc(t.x, t.y, t.size, 0, Math.PI*2); ctx.fill(); });
             ctx.globalAlpha = 1.0;
 
-            // 瞄準扇形
             if (dragState.isDragging && dragState.player && roomStatus === 'playing') {
-                drawAimCone(ctx, dragState.player.position.x, dragState.player.position.y, dragState.currentX - dragState.startX, dragState.currentY - dragState.startY);
+                drawProAiming(ctx, dragState.player.position.x, dragState.player.position.y, dragState.currentX - dragState.startX, dragState.currentY - dragState.startY);
             } else if (opponentAim && currentTurn !== myTeam && roomStatus === 'playing') {
                 let oppPlayer = players[opponentAim.pId];
-                if(oppPlayer) drawAimCone(ctx, oppPlayer.position.x, oppPlayer.position.y, opponentAim.cx - opponentAim.sx, opponentAim.cy - opponentAim.sy);
+                if(oppPlayer) drawProAiming(ctx, oppPlayer.position.x, oppPlayer.position.y, opponentAim.cx - opponentAim.sx, opponentAim.cy - opponentAim.sy);
             }
 
-            // 🌟 分離式扁平陰影 (Drop Shadow)
             ctx.fillStyle = 'rgba(0,0,0,0.25)';
             ctx.beginPath(); ctx.arc(ball.position.x + 3, ball.position.y + 5, 12, 0, 2*Math.PI); ctx.fill();
             players.forEach(p => { ctx.beginPath(); ctx.arc(p.position.x + 4, p.position.y + 6, 22, 0, 2*Math.PI); ctx.fill(); });
 
-            // 足球本體
-            ctx.save(); ctx.translate(ball.position.x, ball.position.y); ctx.rotate(ball.angle); 
-            ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(0, 0, 12, 0, 2*Math.PI); ctx.fill(); 
-            ctx.lineWidth = 3; ctx.strokeStyle = '#2d3436'; ctx.stroke();
+            ctx.save(); ctx.translate(ball.position.x, ball.position.y); 
+            ctx.beginPath(); ctx.arc(0, 0, 16 + Math.sin(time * 0.005) * 3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.25)'; ctx.fill();
+            ctx.rotate(ball.angle); 
+            
+            let ballGrad = ctx.createRadialGradient(-3, -3, 2, 0, 0, 12);
+            ballGrad.addColorStop(0, '#ffffff'); ballGrad.addColorStop(1, '#cccccc');
+            ctx.fillStyle = ballGrad; ctx.beginPath(); ctx.arc(0, 0, 12, 0, 2*Math.PI); ctx.fill(); 
+            ctx.lineWidth = 2; ctx.strokeStyle = '#2d3436'; ctx.stroke();
+            
             ctx.fillStyle = '#2d3436';
             ctx.beginPath(); ctx.arc(0, 0, 4.5, 0, 2*Math.PI); ctx.fill(); 
             ctx.beginPath(); ctx.arc(8, 0, 3, 0, 2*Math.PI); ctx.fill(); 
@@ -2875,40 +2943,60 @@
             ctx.beginPath(); ctx.arc(-5, -6, 3, 0, 2*Math.PI); ctx.fill(); 
             ctx.restore();
 
-            // 🌟 繪製全新「籌碼徽章」風格球員
             players.forEach(p => {
                 ctx.save(); ctx.translate(p.position.x, p.position.y);
-                
-                // 光圈 (輪到該隊時顯示)
-                if(p.team === currentTurn && !isMoving && roomStatus === 'playing') {
-                    ctx.save(); ctx.rotate(time * 0.003);
-                    ctx.setLineDash([10, 10]); ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 4;
-                    ctx.beginPath(); ctx.arc(0, 0, 34, 0, Math.PI*2); ctx.stroke(); ctx.restore();
-                }
-
-                // 1. 外圈金屬邊框
                 ctx.fillStyle = '#2d3436'; ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI*2); ctx.fill();
-                // 2. 隊伍顏色主體
                 ctx.fillStyle = p.team === 'red' ? '#ff6b6b' : '#4ea8de';
                 ctx.beginPath(); ctx.arc(0, 0, 21, 0, Math.PI*2); ctx.fill(); 
-                // 3. 內部白色基底
                 ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI*2); ctx.fill();
-                // 4. 內部隊伍顏色徽章 (星星)
                 ctx.fillStyle = p.team === 'red' ? '#ff6b6b' : '#4ea8de';
                 drawStar(ctx, 0, 0, 5, 10, 5);
-                
                 ctx.restore();
             });
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx; p.y += p.vy; p.vy += 0.4; 
+                p.life -= p.decay; p.angle += p.rotSpeed;
+                if(p.life <= 0) { particles.splice(i, 1); } 
+                else {
+                    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle);
+                    ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size); ctx.restore();
+                }
+            }
+            ctx.globalAlpha = 1.0;
         }
 
-        function drawAimCone(ctx, px, py, dx, dy) {
+        function drawProAiming(ctx, px, py, dx, dy) {
             let dist = Math.sqrt(dx*dx + dy*dy);
-            if (dist > 10) { 
-                let angle = Math.atan2(dy, dx); let fanRadius = Math.min(dist * 1.5, 200); 
-                ctx.beginPath(); ctx.moveTo(px, py);
-                ctx.arc(px, py, fanRadius, angle - 0.35, angle + 0.35);
-                ctx.closePath(); ctx.fillStyle = 'rgba(74, 59, 50, 0.4)'; ctx.fill(); 
-            }
+            if (dist < 5) return;
+            let pullRatio = Math.min(dist / 200, 1.0); 
+            let angle = Math.atan2(dy, dx); 
+            let fwdAngle = angle + Math.PI; 
+
+            ctx.fillStyle = `rgba(0, 0, 0, ${0.1 + pullRatio * 0.35})`; 
+            ctx.beginPath(); ctx.arc(px, py, 30 + pullRatio * 20, 0, Math.PI*2); ctx.fill();
+
+            let triLength = 20 + pullRatio * 40;
+            let triWidth = 15;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.beginPath();
+            ctx.moveTo(px + Math.cos(angle) * (25 + triLength), py + Math.sin(angle) * (25 + triLength)); 
+            ctx.lineTo(px + Math.cos(angle) * 25 + Math.cos(angle + Math.PI/2) * triWidth, py + Math.sin(angle) * 25 + Math.sin(angle + Math.PI/2) * triWidth); 
+            ctx.lineTo(px + Math.cos(angle) * 25 + Math.cos(angle - Math.PI/2) * triWidth, py + Math.sin(angle) * 25 + Math.sin(angle - Math.PI/2) * triWidth);
+            ctx.fill();
+
+            let lineDist = dist * 1.8;
+            let offset = 22; 
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.lineWidth = 3; ctx.setLineDash([8, 8]);
+            ctx.beginPath();
+            let start1X = px + Math.cos(fwdAngle + Math.PI/2) * offset; let start1Y = py + Math.sin(fwdAngle + Math.PI/2) * offset;
+            ctx.moveTo(start1X, start1Y); ctx.lineTo(start1X + Math.cos(fwdAngle) * lineDist, start1Y + Math.sin(fwdAngle) * lineDist);
+            let start2X = px + Math.cos(fwdAngle - Math.PI/2) * offset; let start2Y = py + Math.sin(fwdAngle - Math.PI/2) * offset;
+            ctx.moveTo(start2X, start2Y); ctx.lineTo(start2X + Math.cos(fwdAngle) * lineDist, start2Y + Math.sin(fwdAngle) * lineDist);
+            ctx.stroke(); ctx.setLineDash([]);
         }
 
         function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
@@ -2921,19 +3009,47 @@
         }
 
         function physicsUpdate() {
-            players.forEach(p => {
-                if (p.position.y < fieldTop + 15) {
-                    Matter.Body.setPosition(p, { x: p.position.x, y: fieldTop + 25 });
-                    Matter.Body.setVelocity(p, { x: p.velocity.x, y: Math.max(0, p.velocity.y) });
-                } else if (p.position.y > fieldBottom - 15) {
-                    Matter.Body.setPosition(p, { x: p.position.x, y: fieldBottom - 25 });
-                    Matter.Body.setVelocity(p, { x: p.velocity.x, y: Math.min(0, p.velocity.y) });
+            if (isResettingBall) {
+                let allArrived = true; const lerp = 0.08; 
+                let dx = ball.targetPos.x - ball.position.x; let dy = ball.targetPos.y - ball.position.y;
+                Matter.Body.setPosition(ball, { x: ball.position.x + dx * lerp, y: ball.position.y + dy * lerp });
+                Matter.Body.setAngle(ball, ball.angle + 0.1); 
+                if (Math.abs(dx) > 1 || Math.abs(dy) > 1) allArrived = false;
+
+                players.forEach(p => {
+                    let pdx = p.targetPos.x - p.position.x; let pdy = p.targetPos.y - p.position.y;
+                    Matter.Body.setPosition(p, { x: p.position.x + pdx * lerp, y: p.position.y + pdy * lerp });
+                    if(Math.abs(pdx) > 1 || Math.abs(pdy) > 1) allArrived = false;
+                });
+
+                if (allArrived) {
+                    Matter.Body.setPosition(ball, ball.targetPos);
+                    players.forEach(p => Matter.Body.setPosition(p, p.targetPos));
+                    isResettingBall = false; isMoving = false;
+                    Matter.Body.setStatic(ball, false); players.forEach(p => Matter.Body.setStatic(p, false));
+                    Matter.Body.setVelocity(ball, {x:0,y:0}); players.forEach(p => Matter.Body.setVelocity(p, {x:0,y:0}));
+                    if(roomStatus === 'playing') updateTurnBanner();
+                    if(gameMode === 'single' && currentTurn === 'blue') setTimeout(triggerBotAITurn, 800);
                 }
+                return; 
+            }
+
+            const MAX_SPEED = 30;
+            [ball, ...players].forEach(body => {
+                if (body.speed > MAX_SPEED) Matter.Body.setVelocity(body, { x: (body.velocity.x / body.speed) * MAX_SPEED, y: (body.velocity.y / body.speed) * MAX_SPEED });
+                if (body.position.x < -100 || body.position.x > gameWidth + 100 || body.position.y < -100 || body.position.y > gameHeight + 100) {
+                    Matter.Body.setPosition(body, { x: gameWidth / 2, y: gameHeight / 2 }); Matter.Body.setVelocity(body, { x: 0, y: 0 });
+                }
+            });
+
+            players.forEach(p => {
+                if (p.position.y < fieldTop + 15) { Matter.Body.setPosition(p, { x: p.position.x, y: fieldTop + 25 }); Matter.Body.setVelocity(p, { x: p.velocity.x, y: Math.max(0, p.velocity.y) }); } 
+                else if (p.position.y > fieldBottom - 15) { Matter.Body.setPosition(p, { x: p.position.x, y: fieldBottom - 25 }); Matter.Body.setVelocity(p, { x: p.velocity.x, y: Math.min(0, p.velocity.y) }); }
             });
 
             checkTurnState();
             
-            if (isMoving) {
+            if (isMoving && !isResettingBall) {
                 players.forEach(p => { if (p.speed > 3) trails.push({ x: p.position.x, y: p.position.y, size: 8, alpha: 0.5, color: p.team === 'red' ? '#ff6b6b' : '#4ea8de' }); });
                 if (ball.speed > 3) trails.push({ x: ball.position.x, y: ball.position.y, size: 6, alpha: 0.5, color: 'rgba(255,255,255,0.8)' });
             }
@@ -2948,18 +3064,19 @@
                 const rect = canvas.getBoundingClientRect();
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                return { x: (clientX - rect.left) / currentScale, y: (clientY - rect.top) / currentScale };
+                return { x: (clientX - rect.left) / activeScale, y: (clientY - rect.top) / activeScale };
             };
 
             const onStart = (e) => {
                 if (roomStatus !== 'playing') return; 
-                if (isMoving || currentTurn !== myTeam) return; 
+                if (isMoving || isResettingBall || currentTurn !== myTeam) return; 
                 const pos = getTouchPos(e);
                 let myPlayer = Matter.Query.point(players, pos).find(b => b.team === myTeam);
                 if (myPlayer) {
                     dragState.isDragging = true; dragState.player = myPlayer;
                     dragState.startX = pos.x; dragState.startY = pos.y;
                     dragState.currentX = pos.x; dragState.currentY = pos.y;
+                    setCameraZoom(true); 
                 }
             };
             const onMove = (e) => {
@@ -2974,16 +3091,23 @@
             };
             const onEnd = () => {
                 if (!dragState.isDragging) return;
+                setCameraZoom(false); 
+                
                 let dx = dragState.startX - dragState.currentX; let dy = dragState.startY - dragState.currentY;
                 let pullDist = Math.sqrt(dx*dx + dy*dy); const maxPull = 200; 
                 if (pullDist > maxPull) { dx = (dx/pullDist) * maxPull; dy = (dy/pullDist) * maxPull; }
-                let forceMultiplier = 0.012; let forceX = dx * forceMultiplier; let forceY = dy * forceMultiplier;
+                let forceMultiplier = 0.015; let forceX = dx * forceMultiplier; let forceY = dy * forceMultiplier;
+                
                 if (gameMode === 'multi' && currentTurn !== myTeam) { dragState.isDragging = false; set(ref(db, `rooms/${currentRoom}/aiming`), null); return; }
-                applyAction(players.indexOf(dragState.player), forceX, forceY);
-                if (gameMode === 'multi' && db) {
-                    set(ref(db, `rooms/${currentRoom}/action`), { playerId: players.indexOf(dragState.player), forceX, forceY, timestamp: Date.now() });
-                    set(ref(db, `rooms/${currentRoom}/aiming`), null);
-                }
+                
+                if (pullDist > 10) {
+                    applyAction(players.indexOf(dragState.player), forceX, forceY);
+                    if (gameMode === 'multi' && db) {
+                        set(ref(db, `rooms/${currentRoom}/action`), { playerId: players.indexOf(dragState.player), forceX, forceY, timestamp: Date.now() });
+                        set(ref(db, `rooms/${currentRoom}/aiming`), null);
+                    }
+                } else if(gameMode === 'multi' && db) { set(ref(db, `rooms/${currentRoom}/aiming`), null); }
+                
                 dragState.isDragging = false; dragState.player = null;
             };
 
@@ -2993,15 +3117,19 @@
 
         function applyAction(playerId, forceX, forceY) {
             const player = players[playerId];
-            if (player) { Matter.Body.applyForce(player, player.position, { x: forceX, y: forceY }); isMoving = true; updateTurnBanner(); }
+            if (player) { Matter.Body.applyForce(player, player.position, { x: forceX, y: forceY }); isMoving = true; hideBanners(); }
         }
 
         function checkTurnState() {
-            let inGoalX = ball.position.x > leftW && ball.position.x < (gameWidth - leftW);
-            if (inGoalX && ball.position.y < fieldTop - 5) scoreGoal('red'); 
-            else if (inGoalX && ball.position.y > fieldBottom + 5) scoreGoal('blue');
+            if (isResettingBall) return;
 
-            if (isMoving) {
+            let inGoalX = ball.position.x > leftW && ball.position.x < (gameWidth - leftW);
+            let goalScored = false;
+
+            if (inGoalX && ball.position.y < fieldTop - 5) { scoreGoal('red'); goalScored = true; } 
+            else if (inGoalX && ball.position.y > fieldBottom + 5) { scoreGoal('blue'); goalScored = true; }
+
+            if (isMoving && !goalScored) {
                 let totalSpeed = ball.speed + players.reduce((sum, p) => sum + p.speed, 0);
                 if (totalSpeed < 0.6) { 
                     isMoving = false;
@@ -3014,10 +3142,22 @@
         }
 
         function scoreGoal(team) {
+            isResettingBall = true; isMoving = true; hideBanners();
+            createGoalParticles(ball.position.x, ball.position.y, team); 
+
             if (gameMode === 'multi' && myTeam !== 'red') return; 
+
             let newScores = { ...scores }; newScores[team] += 1;
-            if (gameMode === 'multi' && db) update(ref(db, `rooms/${currentRoom}`), { scores: newScores, resetFlag: Date.now() });
-            else { scores = newScores; updateScoreUI(); checkWin(team); if(scores[team] < WIN_SCORE) resetFormation(false); }
+            let nextTurn = team === 'red' ? 'blue' : 'red';
+
+            if (gameMode === 'multi' && db) {
+                if (newScores[team] >= WIN_SCORE) update(ref(db, `rooms/${currentRoom}`), { scores: newScores, status: 'ended' });
+                else setTimeout(() => { update(ref(db, `rooms/${currentRoom}`), { scores: newScores, turn: nextTurn, resetFlag: Date.now() }); }, 2000); 
+            } else {
+                scores = newScores; updateScoreUI(); 
+                if (scores[team] < WIN_SCORE) { currentTurn = nextTurn; setTimeout(startResetAnimation, 2000); } 
+                else { setTimeout(() => checkWin(team), 1500); }
+            }
         }
 
         function checkWin(team) {
@@ -3032,7 +3172,7 @@
         }
 
         function triggerBotAITurn() {
-            if (currentTurn !== 'blue' || isMoving || roomStatus !== 'playing') return;
+            if (currentTurn !== 'blue' || isMoving || roomStatus !== 'playing' || isResettingBall) return;
             let bot = null; let minDist = Infinity;
             players.filter(p => p.team === 'blue').forEach(p => {
                 let dist = Vector.magnitude(Vector.sub(ball.position, p.position));
@@ -3041,7 +3181,7 @@
             if(bot) {
                 let dir = Vector.normalise(Vector.sub(ball.position, bot.position));
                 let errorAngle = (Math.random() - 0.5) * 0.15; let finalDir = Vector.rotate(dir, errorAngle);
-                applyAction(players.indexOf(bot), finalDir.x * 0.8, finalDir.y * 0.8);
+                applyAction(players.indexOf(bot), finalDir.x * 0.9, finalDir.y * 0.9);
             }
         }
 
@@ -3049,11 +3189,12 @@
             const bBot = document.getElementById('bot-banner'); const bPlayer = document.getElementById('player-banner');
             bBot.classList.remove('active'); bPlayer.classList.remove('active');
             clearTimeout(bannerTimer); 
-            if(roomStatus !== 'playing' || isMoving) return;
+            if(roomStatus !== 'playing' || isMoving || isResettingBall) return;
             if (gameMode === 'single') { if (currentTurn === 'red') bPlayer.classList.add('active'); else bBot.classList.add('active'); } 
             else { if (currentTurn === myTeam) bPlayer.classList.add('active'); else bBot.classList.add('active'); }
             bannerTimer = setTimeout(() => { bBot.classList.remove('active'); bPlayer.classList.remove('active'); }, 2000);
         }
+        function hideBanners() { document.getElementById('bot-banner').classList.remove('active'); document.getElementById('player-banner').classList.remove('active'); }
         function updateScoreUI() { document.getElementById('score-red').innerText = scores.red; document.getElementById('score-blue').innerText = scores.blue; }
 
         const menuContainer = document.getElementById('menu-container'); const gameUI = document.getElementById('game-ui');
@@ -3061,17 +3202,18 @@
         function exitToMenu() {
             if (gameMode === 'multi' && currentRoom && db) { set(ref(db, `rooms/${currentRoom}`), null); } 
             gameMode = 'single'; currentRoom = null; roomStatus = 'ended'; opponentAim = null;
-            document.getElementById('win-modal').style.display = 'none';
-            document.getElementById('waiting-overlay').style.display = 'none';
+            document.getElementById('win-modal').style.display = 'none'; document.getElementById('waiting-overlay').style.display = 'none';
             gameUI.style.display = 'none'; menuContainer.style.display = 'flex';
             if(engine) { Matter.Engine.clear(engine); Render.stop(render); Runner.stop(runner); }
         }
 
-        document.getElementById('btn-exit').addEventListener('click', () => { if(confirm("確定要離開遊戲嗎？")) exitToMenu(); });
+        document.getElementById('btn-exit').addEventListener('click', () => { if(confirm("確定要退出遊戲嗎？")) exitToMenu(); });
+        document.getElementById('btn-cancel-wait').addEventListener('click', exitToMenu);
         document.getElementById('btn-home').addEventListener('click', exitToMenu);
 
         document.getElementById('btn-single').addEventListener('click', () => {
             gameMode = 'single'; myTeam = 'red'; roomStatus = 'playing';
+            document.getElementById('p2-name').innerText = "BOT";
             menuContainer.style.display = 'none'; gameUI.style.display = 'flex'; initGame();
         });
 
@@ -3090,6 +3232,7 @@
                 await set(roomRef, { scores: { red: 0, blue: 0 }, turn: 'red', status: 'waiting' });
                 onDisconnect(roomRef).remove();
                 gameMode = 'multi'; myTeam = 'red'; currentRoom = roomId; roomStatus = 'waiting';
+                document.getElementById('p2-name').innerText = "P2";
                 menuContainer.style.display = 'none'; gameUI.style.display = 'flex'; 
                 document.getElementById('waiting-overlay').style.display = 'flex';
                 document.getElementById('waiting-room-id').innerText = roomId;
@@ -3109,6 +3252,7 @@
                     update(ref(db, `rooms/${roomId}`), { status: 'playing' });
                     onDisconnect(ref(db, `rooms/${roomId}`)).remove();
                     gameMode = 'multi'; myTeam = 'blue'; currentRoom = roomId; roomStatus = 'playing';
+                    document.getElementById('p2-name').innerText = "P1";
                     menuContainer.style.display = 'none'; gameUI.style.display = 'flex'; 
                     document.getElementById('waiting-overlay').style.display = 'none';
                     initGame(); listenToRoom();
@@ -3119,19 +3263,22 @@
         document.getElementById('btn-rematch').addEventListener('click', () => {
             document.getElementById('win-modal').style.display = 'none'; roomStatus = 'playing';
             if(gameMode === 'multi' && myTeam === 'red' && db) set(ref(db, `rooms/${currentRoom}`), { scores: { red: 0, blue: 0 }, turn: 'red', status: 'playing', resetFlag: Date.now() });
-            else if (gameMode === 'single') resetFormation(true);
+            else if (gameMode === 'single') { setupPhysicsBodies(); updateTargetPositions(); Matter.Body.setPosition(ball, ball.targetPos); players.forEach(p => Matter.Body.setPosition(p, p.targetPos)); isMoving = false; currentTurn = 'red'; updateTurnBanner(); }
         });
 
         let lastActionTime = 0; let lastResetTime = 0;
         function listenToRoom() {
             onValue(ref(db, `rooms/${currentRoom}`), (snapshot) => {
                 const data = snapshot.val(); 
-                if (!data) { if(roomStatus !== 'ended') { showToast("⚠️ 對手已離開房間", true); setTimeout(exitToMenu, 1500); } return; }
+                if (!data) { if(roomStatus !== 'ended' && roomStatus !== 'waiting') { showToast("⚠️ 對手已離開房間", true); setTimeout(exitToMenu, 1500); } return; }
                 if (roomStatus === 'waiting' && data.status === 'playing') { roomStatus = 'playing'; document.getElementById('waiting-overlay').style.display = 'none'; updateTurnBanner(); }
+                
                 scores = data.scores || { red: 0, blue: 0 }; updateScoreUI();
+                
                 if (data.status === 'ended' && document.getElementById('win-modal').style.display !== 'flex') { checkWin('red'); checkWin('blue'); }
-                if (data.resetFlag && data.resetFlag > lastResetTime) { document.getElementById('win-modal').style.display = 'none'; resetFormation(true); lastResetTime = data.resetFlag; }
-                if (data.turn && data.turn !== currentTurn && !isMoving && data.status === 'playing') { currentTurn = data.turn; updateTurnBanner(); }
+                if (data.resetFlag && data.resetFlag > lastResetTime) { document.getElementById('win-modal').style.display = 'none'; startResetAnimation(); lastResetTime = data.resetFlag; }
+                
+                if (data.turn && data.turn !== currentTurn && !isMoving && !isResettingBall && data.status === 'playing') { currentTurn = data.turn; updateTurnBanner(); }
                 if (data.aiming) opponentAim = data.aiming; else opponentAim = null;
             });
             onValue(ref(db, `rooms/${currentRoom}/action`), (snapshot) => {
@@ -3172,5 +3319,6 @@
     </script>
 </body>
 </html>
+
 
 
