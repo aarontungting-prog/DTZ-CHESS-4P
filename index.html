@@ -206,17 +206,2290 @@
     </div>
 
     <textarea id="game1" style="display:none;">
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>木製彈彈棋 - 旗艦版</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #2c1e16; 
+            --board-light: #e0b98a; 
+            --board-dark: #6b4423;  
+            --wood-panel: #8b5a2b;  
+            --text-gold: #fde8b1;   
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at center, #3d2b1f 0%, #1a100a 100%);
+            font-family: "Georgia", "Times New Roman", serif;
+            overflow: hidden; display: flex; justify-content: center; align-items: center;
+            touch-action: none; user-select: none; -webkit-user-select: none;
+        }
+
+        #toast {
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
+            background-color: rgba(0,0,0,0.8); color: var(--text-gold); padding: 12px 24px; border-radius: 8px;
+            font-size: 16px; font-weight: bold; z-index: 9999; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            transition: top 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); text-align: center; border: 2px solid var(--board-dark);
+        }
+
+        #game-container {
+            position: relative; width: 100vw; max-width: 450px; height: 100vh; max-height: 800px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.6); border-radius: 8px;
+            overflow: hidden; background-color: var(--board-light); border: 16px solid var(--board-dark);
+            box-sizing: border-box; transition: transform 0.5s ease; 
+        }
+
+        #game-container::after {
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.03) 0px, rgba(0,0,0,0.03) 1px, transparent 1px, transparent 15px),
+                        repeating-linear-gradient(90deg, rgba(139,69,19,0.05) 0px, rgba(139,69,19,0.05) 2px, transparent 2px, transparent 40px);
+            pointer-events: none;
+        }
+
+        canvas { display: block; width: 100%; height: 100%; }
+
+        .ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: rgba(0, 0, 0, 0.7); z-index: 10; transition: opacity 0.3s ease;
+        }
+
+        .wooden-sign {
+            background: var(--wood-panel); border: 6px solid #4a2e15; border-radius: 12px;
+            padding: 25px; text-align: center; width: 85%; box-sizing: border-box;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 15px 30px rgba(0,0,0,0.6);
+            background-image: repeating-linear-gradient(0deg, rgba(0,0,0,0.05) 0px, rgba(0,0,0,0.05) 2px, transparent 2px, transparent 20px);
+        }
+
+        .hidden { opacity: 0; pointer-events: none; }
+
+        h1 { font-size: 2.2rem; color: var(--text-gold); margin: 0 0 10px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
+        p { color: #d1bfae; margin-bottom: 20px; font-size: 1rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+
+        .btn {
+            background: #3e2723; color: var(--text-gold); border: 3px solid #27140c;
+            padding: 12px 15px; font-size: 1.1rem; font-weight: bold; border-radius: 6px; cursor: pointer;
+            box-shadow: inset 0 2px 5px rgba(255,255,255,0.1), 0 5px 10px rgba(0,0,0,0.5); width: 100%; margin-bottom: 10px;
+        }
+        .btn:active { transform: translateY(3px); box-shadow: inset 0 2px 5px rgba(255,255,255,0.1), 0 2px 4px rgba(0,0,0,0.5); }
+        
+        .btn-ai { background: #1a4a28; }
+        .btn-local { background: #4a2e15; }
+
+        .input-box {
+            width: 100%; padding: 10px; font-size: 1.2rem; text-align: center; border-radius: 6px;
+            border: 3px solid #4a2e15; background: #e0b98a; color: #3e2723; font-weight: bold; margin-bottom: 10px; box-sizing: border-box;
+        }
+
+        #score-board { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 5; }
+        .score { position: absolute; font-size: 6rem; font-weight: 900; color: rgba(139, 69, 19, 0.15); width: 100%; text-align: center; font-family: sans-serif; }
+        #score-p2 { top: 12%; transform: rotate(180deg); }
+        #score-p1 { bottom: 12%; }
+        
+        .divider { height: 2px; background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.1); margin: 15px 0; }
+    </style>
+</head>
+<body>
+
+<div id="toast">提示訊息</div>
+
+<div id="game-container">
+    <div id="score-board">
+        <div id="score-p2" class="score">5</div>
+        <div id="score-p1" class="score">5</div>
+    </div>
+
+    <div id="menu-screen" class="ui-layer">
+        <div class="wooden-sign">
+            <h1>彈彈棋</h1>
+            <button class="btn btn-ai" id="btn-ai">🤖 單人挑戰 (VS 電腦)</button>
+            <button class="btn btn-local" id="btn-local">👐 單機雙人 (同螢幕)</button>
+            
+            <div class="divider"></div>
+            <p style="margin-bottom: 10px;">🌐 網路連線對戰</p>
+            <button class="btn" id="btn-create">創建房間 (P1 黑棋)</button>
+            <input type="text" id="input-room" class="input-box" placeholder="輸入 4 碼房號..." maxlength="4">
+            <button class="btn" id="btn-join" style="background: #27140c; margin-bottom: 0;">加入房間 (P2 白棋)</button>
+        </div>
+    </div>
+
+    <div id="waiting-screen" class="ui-layer hidden">
+        <div class="wooden-sign">
+            <p>等待對手加入...</p>
+            <h1 id="waiting-room-id" style="font-size: 4rem; letter-spacing: 5px;">0000</h1>
+            <button class="btn" id="btn-cancel" style="margin-top: 20px;">取消</button>
+        </div>
+    </div>
+
+    <div id="win-screen" class="ui-layer hidden">
+        <div class="wooden-sign">
+            <h1 id="win-text">黑棋 獲勝</h1>
+            <button class="btn" id="btn-home">回主畫面</button>
+        </div>
+    </div>
+
+    <canvas id="game-canvas"></canvas>
+</div>
+
+<script type="module">
+    // --- 1. Firebase 初始化 ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue, update, get, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCnONA7vSsBwOcui-bVBmmZfD_TOVZmck0",
+        authDomain: "airplane-game-68f8f.firebaseapp.com",
+        projectId: "airplane-game-68f8f",
+        storageBucket: "airplane-game-68f8f.firebasestorage.app",
+        messagingSenderId: "215248477446",
+        appId: "1:215248477446:web:f1d9dbb69b759118125287",
+        databaseURL: "https://airplane-game-68f8f-default-rtdb.asia-southeast1.firebasedatabase.app/" 
+    };
+    let db = null;
+    try { db = getDatabase(initializeApp(firebaseConfig)); } catch (e) { console.warn("Firebase Init Failed"); }
+
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.innerText = msg; toast.style.top = '40px'; 
+        setTimeout(() => { toast.style.top = '-100px'; }, 3000); 
+    }
+
+    // --- 2. 遊戲系統變數 ---
+    const Engine = Matter.Engine, Runner = Matter.Runner, Bodies = Matter.Bodies, Composite = Matter.Composite, Vector = Matter.Vector, Body = Matter.Body;
+    let engine, runner, world;
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+
+    const W = 420, H = 780, PUCK_R = 18, GAP = 65, MID_Y = H / 2;
+    const SLING_Y_P1 = H - 80, SLING_Y_P2 = 80;
+
+    let pucks = [];
+    let activeDrags = {};   // 支援多點觸控 (Multi-touch) 的拖曳紀錄
+    let oppAiming = null;   // 對手（AI 或 網路玩家）的瞄準狀態
+    
+    let gameMode = 'menu';  // 'ai', 'local', 'online'
+    let myRole = 'p1';      // 在 online 區分 p1/p2，在 local/ai 預設玩家在底部 (p1)
+    let currentRoom = null;
+    let roomStatus = 'menu';
+
+    // --- 3. 遊戲初始化 ---
+    function initPhysics() {
+        if(engine) { Runner.stop(runner); Engine.clear(engine); }
+        engine = Engine.create({ gravity: { x: 0, y: 0 } });
+        world = engine.world;
+
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr); ctx.scale(rect.width / W, rect.height / H);
+
+        buildBoard(); spawnPucks();
+
+        runner = Runner.create(); Runner.run(runner, engine);
+        requestAnimationFrame(renderLoop);
+    }
+
+    function buildBoard() {
+        const wallOpt = { isStatic: true, restitution: 0.3, friction: 0.1, render: { visible: false } };
+        const bounceOpt = { isStatic: true, restitution: 0.2, friction: 0.1 }; 
+        Composite.add(world, [
+            Bodies.rectangle(W/2, -20, W, 40, wallOpt), Bodies.rectangle(W/2, H+20, W, 40, wallOpt),
+            Bodies.rectangle(-20, H/2, 40, H, wallOpt), Bodies.rectangle(W+20, H/2, 40, H, wallOpt),
+            Bodies.rectangle((W - GAP)/4, MID_Y, (W - GAP)/2, 26, bounceOpt),
+            Bodies.rectangle(W - (W - GAP)/4, MID_Y, (W - GAP)/2, 26, bounceOpt)
+        ]);
+    }
+
+    function spawnPucks() {
+        pucks = [];
+        const puckOpt = { restitution: 0.3, frictionAir: 0.02, friction: 0.05, density: 0.02 };
+        let idCounter = 0;
+        for(let i=0; i<5; i++) {
+            let px = W/2 - 80 + (i * 40);
+            let p1 = Bodies.circle(px, SLING_Y_P1 - 50, PUCK_R, { ...puckOpt, label: 'black' }); p1.customId = idCounter++;
+            let p2 = Bodies.circle(px, SLING_Y_P2 + 50, PUCK_R, { ...puckOpt, label: 'white' }); p2.customId = idCounter++;
+            pucks.push(p1, p2);
+        }
+        Composite.add(world, pucks);
+    }
+
+    // --- 4. 電腦 AI 邏輯 (Basic AI) ---
+    let aiState = 'idle';
+    let aiTargetPuck = null;
+    let aiDragTicks = 0;
+
+    function updateAI() {
+        if (gameMode !== 'ai' || roomStatus !== 'playing') return;
+
+        if (aiState === 'idle') {
+            // AI 隨機決定是否要出手的頻率
+            if (Math.random() < 0.03) { 
+                let aiPucks = pucks.filter(p => p.position.y < MID_Y); // 尋找上半場的棋子
+                if (aiPucks.length > 0) {
+                    aiTargetPuck = aiPucks[Math.floor(Math.random() * aiPucks.length)];
+                    aiState = 'dragging';
+                    aiDragTicks = 0;
+                }
+            }
+        } else if (aiState === 'dragging') {
+            aiDragTicks++;
+            // 模擬往後拉 40~60 像素
+            let pullBackY = SLING_Y_P2 - 50; 
+            // 稍微瞄準中間洞口，加入一點點誤差
+            let aimX = (W / 2) + (Math.random() - 0.5) * 40; 
+            
+            // 設定視覺上的拉弓殘影，讓玩家看得到 AI 正在拉
+            oppAiming = { pId: aiTargetPuck.customId, cx: aiTargetPuck.position.x, cy: pullBackY };
+            
+            // 模擬手指按住 15 個 frame (約 0.25 秒) 後放開
+            if (aiDragTicks > 15) { 
+                let velY = (SLING_Y_P2 - pullBackY) * 0.55; 
+                let velX = (aimX - aiTargetPuck.position.x) * 0.08;
+                
+                // 確保棋子沒有在此期間被撞過中線
+                if (aiTargetPuck.position.y < MID_Y) {
+                    Body.setVelocity(aiTargetPuck, { x: velX, y: velY });
+                }
+                oppAiming = null;
+                aiState = 'idle';
+                aiTargetPuck = null;
+            }
+        }
+    }
+
+    // --- 5. 操作與多點觸控邏輯 ---
+    function getEventPos(e, rect) {
+        let x = (e.clientX - rect.left) * (W / rect.width);
+        let y = (e.clientY - rect.top) * (H / rect.height);
+        if (gameMode === 'online' && myRole === 'p2') { x = W - x; y = H - y; } // 僅線上 P2 需翻轉
+        return { x, y };
+    }
+
+    function onPointerDown(e) {
+        if (roomStatus !== 'playing') return;
+        const rect = canvas.getBoundingClientRect();
+        const pos = getEventPos(e, rect);
+        
+        for(let p of pucks) {
+            if(Vector.magnitude(Vector.sub(p.position, pos)) < PUCK_R * 1.8) {
+                let canGrab = false;
+                
+                if (gameMode === 'local') {
+                    // 單機雙人：點擊上半場抓上半場，點擊下半場抓下半場
+                    canGrab = (pos.y > MID_Y && p.position.y > MID_Y) || (pos.y < MID_Y && p.position.y < MID_Y);
+                } else if (gameMode === 'ai') {
+                    // 玩家打 AI：只能抓下半場
+                    canGrab = (pos.y > MID_Y && p.position.y > MID_Y);
+                } else if (gameMode === 'online') {
+                    // 網路對戰：依據身分抓半場
+                    canGrab = (myRole === 'p1' && p.position.y > MID_Y) || (myRole === 'p2' && p.position.y < MID_Y);
+                }
+
+                if(canGrab) {
+                    activeDrags[e.pointerId] = { body: p, isP1Side: (pos.y > MID_Y) };
+                    Body.setVelocity(p, { x: 0, y: 0 });
+                    break;
+                }
+            }
+        }
+    }
+
+    function onPointerMove(e) {
+        let drag = activeDrags[e.pointerId];
+        if(!drag) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const pos = getEventPos(e, rect);
+        const p = drag.body;
+
+        let targetX = Math.max(PUCK_R, Math.min(W - PUCK_R, pos.x));
+        let targetY = pos.y;
+
+        if (drag.isP1Side) { // 操作下方半場
+            targetY = Math.max(MID_Y + PUCK_R + 15, Math.min(H - PUCK_R, pos.y));
+            if (targetY > SLING_Y_P1 + 60) targetY = SLING_Y_P1 + 60;
+        } else { // 操作上方半場
+            targetY = Math.min(MID_Y - PUCK_R - 15, Math.max(PUCK_R, pos.y));
+            if (targetY < SLING_Y_P2 - 60) targetY = SLING_Y_P2 - 60;
+        }
+
+        Body.setPosition(p, { x: targetX, y: targetY });
+        Body.setVelocity(p, { x: 0, y: 0 });
+
+        if (gameMode === 'online' && db && currentRoom) {
+            set(ref(db, `rooms/${currentRoom}/aiming/${myRole}`), { pId: p.customId, cx: targetX, cy: targetY });
+        }
+    }
+
+    function onPointerUp(e) {
+        let drag = activeDrags[e.pointerId];
+        if(!drag) return;
+        
+        const p = drag.body;
+        let velY = 0; const POWER = 0.6; 
+
+        if (drag.isP1Side && p.position.y > SLING_Y_P1) {
+            velY = -(p.position.y - SLING_Y_P1) * POWER; 
+        } else if (!drag.isP1Side && p.position.y < SLING_Y_P2) {
+            velY = (SLING_Y_P2 - p.position.y) * POWER;
+        }
+
+        Body.setVelocity(p, { x: 0, y: velY });
+
+        if (gameMode === 'online' && db && currentRoom && Math.abs(velY) > 0) {
+            set(ref(db, `rooms/${currentRoom}/action`), { pId: p.customId, vy: velY, ts: Date.now() });
+            set(ref(db, `rooms/${currentRoom}/aiming/${myRole}`), null);
+        }
+        
+        delete activeDrags[e.pointerId];
+    }
+
+    canvas.addEventListener('pointerdown', onPointerDown); canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', onPointerUp); canvas.addEventListener('pointercancel', onPointerUp);
+
+    // --- 6. 渲染與物理迴圈 ---
+    function renderLoop() {
+        if(!engine) return;
+        
+        updateAI(); // 每一幀更新 AI 狀態
+
+        ctx.clearRect(0, 0, W, H);
+        ctx.save();
+        if (gameMode === 'online' && myRole === 'p2') { ctx.translate(W/2, H/2); ctx.rotate(Math.PI); ctx.translate(-W/2, -H/2); }
+
+        // 絕對防線機制
+        pucks.forEach(p => {
+            let isDraggedByHuman = Object.values(activeDrags).some(d => d.body === p);
+            let isDraggedByOpp = oppAiming && oppAiming.pId === p.customId;
+            
+            if (!isDraggedByHuman && !isDraggedByOpp) {
+                if (p.position.y > SLING_Y_P1) {
+                    Body.setPosition(p, { x: p.position.x, y: SLING_Y_P1 - 1 });
+                    Body.setVelocity(p, { x: p.velocity.x, y: -Math.abs(p.velocity.y) * 0.8 });
+                } else if (p.position.y < SLING_Y_P2) {
+                    Body.setPosition(p, { x: p.position.x, y: SLING_Y_P2 + 1 });
+                    Body.setVelocity(p, { x: p.velocity.x, y: Math.abs(p.velocity.y) * 0.8 });
+                }
+            }
+        });
+
+        // 畫隔板
+        ctx.fillStyle = "#5c3a21";
+        ctx.fillRect(0, MID_Y - 13, (W - GAP)/2, 26); ctx.fillRect(W - (W - GAP)/2, MID_Y - 13, (W - GAP)/2, 26);
+
+        // 畫彈力繩
+        ctx.lineWidth = 4; ctx.lineCap = "round"; ctx.strokeStyle = "#1a1a1a";
+        
+        function drawSling(yLine, isP1SideCheck) {
+            ctx.beginPath();
+            // 找尋是否有玩家正在拉這條繩子
+            let dragData = Object.values(activeDrags).find(d => d.isP1Side === isP1SideCheck);
+            let aimData = null;
+            
+            if (gameMode === 'ai' && !isP1SideCheck) aimData = oppAiming; // AI 的殘影
+            if (gameMode === 'online' && ((myRole === 'p1' && !isP1SideCheck) || (myRole === 'p2' && isP1SideCheck))) aimData = oppAiming;
+
+            if (dragData && ((yLine === SLING_Y_P1 && dragData.body.position.y > yLine) || (yLine === SLING_Y_P2 && dragData.body.position.y < yLine))) {
+                ctx.moveTo(0, yLine); ctx.lineTo(dragData.body.position.x - PUCK_R, dragData.body.position.y);
+                ctx.moveTo(dragData.body.position.x + PUCK_R, dragData.body.position.y); ctx.lineTo(W, yLine);
+            } else if (aimData && ((yLine === SLING_Y_P1 && aimData.cy > yLine) || (yLine === SLING_Y_P2 && aimData.cy < yLine))) {
+                ctx.moveTo(0, yLine); ctx.lineTo(aimData.cx - PUCK_R, aimData.cy);
+                ctx.moveTo(aimData.cx + PUCK_R, aimData.cy); ctx.lineTo(W, yLine);
+            } else {
+                ctx.moveTo(0, yLine); ctx.lineTo(W, yLine);
+            }
+            ctx.stroke();
+        }
+
+        drawSling(SLING_Y_P1, true);  // P1 側
+        drawSling(SLING_Y_P2, false); // P2 側
+
+        // 畫棋子與算分
+        let p1Count = 0; let p2Count = 0;
+        pucks.forEach(p => {
+            if (p.position.y > MID_Y) p1Count++; else p2Count++;
+            
+            let drawX = p.position.x; let drawY = p.position.y;
+            if (oppAiming && oppAiming.pId === p.customId) { drawX = oppAiming.cx; drawY = oppAiming.cy; }
+
+            const isBlack = p.label === 'black';
+            ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.beginPath(); ctx.arc(drawX + 2, drawY + 4, PUCK_R, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = isBlack ? "#1a1a1a" : "#b08d6a"; ctx.beginPath(); ctx.arc(drawX, drawY + 4, PUCK_R, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = isBlack ? "#333333" : "#e6cdb3"; ctx.beginPath(); ctx.arc(drawX, drawY, PUCK_R, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = isBlack ? "#111111" : "#c4a47c"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(drawX, drawY, PUCK_R*0.6, 0, Math.PI*2); ctx.stroke();
+        });
+
+        ctx.restore(); 
+
+        document.getElementById('score-p1').innerText = p1Count; document.getElementById('score-p2').innerText = p2Count;
+
+        // 勝負判斷
+        if (roomStatus === 'playing' && (p1Count === 0 || p2Count === 0)) {
+            roomStatus = 'ended';
+            let winner = p1Count === 0 ? "下方玩家 (黑棋)" : "上方玩家 (白棋)";
+            document.getElementById('win-text').innerText = `${winner}\n贏得勝利!`;
+            document.getElementById('win-screen').classList.remove('hidden');
+            if(gameMode === 'online' && db && myRole === 'p1') update(ref(db, `rooms/${currentRoom}`), { status: 'ended' });
+        }
+
+        requestAnimationFrame(renderLoop);
+    }
+
+    // --- 7. UI 選單流程 ---
+    const uiMenu = document.getElementById('menu-screen');
+    const uiWait = document.getElementById('waiting-screen');
+    const uiWin = document.getElementById('win-screen');
+    const gameContainer = document.getElementById('game-container');
+
+    function resetToMenu() {
+        if (gameMode === 'online' && db && currentRoom && myRole === 'p1') set(ref(db, `rooms/${currentRoom}`), null);
+        gameMode = 'menu'; roomStatus = 'menu'; currentRoom = null; activeDrags = {}; oppAiming = null;
+        aiState = 'idle'; aiTargetPuck = null;
+        uiMenu.classList.remove('hidden'); uiWait.classList.add('hidden'); uiWin.classList.add('hidden');
+        gameContainer.style.transform = "rotate(0deg)"; 
+        if(engine) { Runner.stop(runner); Engine.clear(engine); }
+    }
+
+    document.getElementById('btn-home').addEventListener('click', resetToMenu);
+    document.getElementById('btn-cancel').addEventListener('click', resetToMenu);
+
+    // 啟動單人 AI 模式
+    document.getElementById('btn-ai').addEventListener('click', () => {
+        gameMode = 'ai'; roomStatus = 'playing'; myRole = 'p1';
+        uiMenu.classList.add('hidden'); gameContainer.style.transform = "rotate(0deg)";
+        initPhysics(); showToast("對戰 AI 開始！");
+    });
+
+    // 啟動單機雙人模式
+    document.getElementById('btn-local').addEventListener('click', () => {
+        gameMode = 'local'; roomStatus = 'playing'; myRole = 'p1'; // Local 模式螢幕不翻轉
+        uiMenu.classList.add('hidden'); gameContainer.style.transform = "rotate(0deg)";
+        initPhysics(); showToast("單機雙人對戰開始！");
+    });
+
+    // 線上對戰流程
+    document.getElementById('btn-create').addEventListener('click', async () => {
+        if(!db) return showToast("Firebase 未連線");
+        let roomId = Math.floor(1000 + Math.random() * 9000).toString();
+        await set(ref(db, `rooms/${roomId}`), { status: 'waiting' });
+        onDisconnect(ref(db, `rooms/${roomId}`)).remove(); 
+        
+        gameMode = 'online'; myRole = 'p1'; currentRoom = roomId; roomStatus = 'waiting';
+        document.getElementById('waiting-room-id').innerText = roomId;
+        uiMenu.classList.add('hidden'); uiWait.classList.remove('hidden');
+        gameContainer.style.transform = "rotate(0deg)";
+        initPhysics(); listenToRoom();
+    });
+
+    document.getElementById('btn-join').addEventListener('click', () => {
+        if(!db) return showToast("Firebase 未連線");
+        const roomId = document.getElementById('input-room').value.trim();
+        if(roomId.length !== 4) return showToast("請輸入 4 碼房號");
+        
+        get(ref(db, `rooms/${roomId}`)).then(snap => {
+            if (snap.exists() && snap.val().status === 'waiting') {
+                update(ref(db, `rooms/${roomId}`), { status: 'playing' });
+                gameMode = 'online'; myRole = 'p2'; currentRoom = roomId; roomStatus = 'playing';
+                uiMenu.classList.add('hidden'); 
+                gameContainer.style.transform = "rotate(180deg)";
+                initPhysics(); listenToRoom(); showToast("加入成功！開始對戰！");
+            } else showToast("房間不存在或已開戰");
+        });
+    });
+
+    let lastActionTs = 0;
+    function listenToRoom() {
+        if (gameMode !== 'online') return;
+        
+        onValue(ref(db, `rooms/${currentRoom}/status`), snap => {
+            let status = snap.val();
+            if (!status && roomStatus !== 'menu') { showToast("對手已離開"); resetToMenu(); return; }
+            if (roomStatus === 'waiting' && status === 'playing') {
+                roomStatus = 'playing'; uiWait.classList.add('hidden'); showToast("對手已加入！開始對戰！");
+            }
+            if (status === 'ended') roomStatus = 'ended';
+        });
+
+        let oppRole = myRole === 'p1' ? 'p2' : 'p1';
+        onValue(ref(db, `rooms/${currentRoom}/aiming/${oppRole}`), snap => { oppAiming = snap.val(); });
+
+        onValue(ref(db, `rooms/${currentRoom}/action`), snap => {
+            let data = snap.val();
+            if (data && data.ts > lastActionTs) {
+                lastActionTs = data.ts;
+                let targetPuck = pucks.find(p => p.customId === data.pId);
+                if (targetPuck) { Body.setVelocity(targetPuck, { x: 0, y: data.vy }); oppAiming = null; }
+            }
+        });
+    }
+</script>
+</body>
+</html>        
 </textarea>
 
     <textarea id="game2" style="display:none;">
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>四人西洋棋 競技版 (黃金比例 UI 版)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <style>
+        /* =========================================
+           1. 全域設定 (Global UI & Canvas)
+           ========================================= */
+        body { margin: 0; padding: 0; overflow: hidden; background: #222222; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; color: white; user-select: none; }
+        canvas { position: absolute; top: 0; left: 0; z-index: 0; outline: none; cursor: grab; }
+        canvas:active { cursor: grabbing; }
+        #ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
+        
+        .hud-container { position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; gap: 15px; width: 280px; pointer-events: auto; }
+        .hud-box { background: rgba(30, 30, 30, 0.95); border: 1px solid #444; border-radius: 8px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .user-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .name-text { font-weight: bold; font-size: 16px; color: #fff; }
+        
+        .custom-btn, .game-btn, .small-btn { padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; border: none; width: 100%; text-align: center; box-sizing: border-box; }
+        .custom-btn { background: #444; color: #ccc; font-size: 13px; }
+        .custom-btn:hover { background: #555; color: #fff; }
+        .game-btn { background: #8ca2ad; color: #111; margin-top: 8px; font-size: 14px;}
+        .game-btn:hover { background: #9db2bd; }
+        .join-btn { background: #739954; color: #fff; }
+        .join-btn:hover { background: #84a965; }
+        
+        .lobby-title { color: #aaa; font-size: 12px; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid #444; padding-bottom: 5px; text-transform: uppercase; }
+        .room-status { font-size: 14px; color: #739954; margin-bottom: 12px; font-weight: bold; }
+        
+        .side-panel { position: fixed; top: 0; left: 0; bottom: 0; width: 300px; background: rgba(30, 30, 30, 0.98); border-right: 1px solid #444; transform: translateX(-105%); transition: 0.3s; z-index: 1200; padding: 25px; box-sizing: border-box; pointer-events: auto; }
+        .side-panel.active { transform: translateX(0); }
+        .custom-input { width: 100%; padding: 10px; background: #111; border: 1px solid #555; color: #fff; border-radius: 4px; box-sizing: border-box; margin-bottom: 10px; }
+        
+        .avatar-preview-container { width: 90px; height: 90px; margin: 0 auto 15px auto; position: relative; border-radius: 8px; background: #111; cursor: pointer; overflow: hidden; border: 2px solid #555; transition: 0.3s; }
+        .avatar-preview-container:hover { border-color: #8ca2ad; }
+        .avatar-preview-container img { width: 100%; height: 100%; object-fit: cover; }
+        .avatar-hint { position: absolute; bottom: 0; width: 100%; text-align: center; background: rgba(0,0,0,0.7); font-size: 11px; padding: 4px 0; color: #fff; }
+
+        #menu-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 900; pointer-events: auto; }
+        #menu-backdrop.active { display: block; }
+        .time-setting-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .time-setting-row div { flex: 1; }
+        .time-setting-row label { display: block; font-size: 11px; color: #aaa; margin-bottom: 4px; }
+        #loading { position: fixed; inset: 0; background: #222; display: flex; justify-content: center; align-items: center; color: #fff; font-weight: bold; z-index: 2000; font-size: 20px; }
+        #victory-screen { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:3000; flex-direction:column; justify-content:center; align-items:center; text-align:center; pointer-events: auto; }
+        
+        #mobile-menu-btn { display: none; }
+        @media (max-width: 600px) {
+            #mobile-menu-btn { display: flex; position: absolute; bottom: 20px; left: 20px; width: 50px; height: 50px; background: #444; border-radius: 50%; color: #fff; justify-content: center; align-items: center; font-weight: bold; z-index: 1500; pointer-events: auto; }
+            .hud-container { width: 100%; position: fixed; top: auto; bottom: 0; left: 0; transform: translateY(110%); transition: 0.3s; padding: 10px 20px 80px 20px; background: rgba(30, 30, 30, 0.95); border-top: 1px solid #555; box-sizing: border-box; z-index: 1000; }
+            .hud-container.mobile-visible { transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<div id="loading">載入四人棋引擎...</div>
+<canvas id="chess-canvas"></canvas>
+
+<div id="ui" style="display:none;">
+    <div id="mobile-menu-btn" onclick="toggleMenu()">☰</div>
+    <div id="menu-backdrop" onclick="closeAllMenus()"></div>
+
+    <div id="menu-panel" class="hud-container">
+        <div class="hud-box">
+            <div class="user-card-header">
+                <img id="hud-avatar" src="" style="width:36px; height:36px; border-radius:4px; object-fit:cover; background:#111;">
+                <span id="user-name" class="name-text">訪客</span>
+            </div>
+            <button class="custom-btn" onclick="document.getElementById('custom-panel').classList.add('active')">🛠️ 編輯個人資料</button>
+        </div>
+
+        <div class="hud-box">
+            <div class="lobby-title">對戰大廳</div>
+            <div id="room-display" class="room-status">閒置中</div>
+            <div id="lobby-buttons">
+                <button id="btn-practice" class="game-btn" style="background:#f0c424; color:#000;">單機沙盒練習</button>
+                <div style="height:15px; border-bottom: 1px solid #444; margin-bottom: 15px;"></div>
+                
+                <div class="time-setting-row">
+                    <div><label>時間 (分鐘)</label><input type="number" id="time-mins" class="custom-input" value="5" min="1" max="60"></div>
+                    <div><label>加秒 (秒)</label><input type="number" id="time-inc" class="custom-input" value="5" min="0" max="60"></div>
+                </div>
+                
+                <button id="btn-create" class="game-btn">創建房間</button>
+                <button id="btn-join" class="game-btn join-btn">加入房間</button>
+            </div>
+            <button id="btn-exit-practice" class="game-btn" style="display:none; background:#ff9900; color:black;">結束單機</button>
+            <button id="btn-leave" class="game-btn" style="display:none; background:#e33539; color:white;">退出房間</button>
+        </div>
+    </div>
+
+    <div id="custom-panel" class="side-panel">
+        <h2 style="color:#fff; margin-top:0;">個人設定</h2>
+        
+        <div class="avatar-preview-container" onclick="document.getElementById('avatar-upload').click()">
+            <img id="avatar-preview-img" src="" alt="Avatar">
+            <div class="avatar-hint">上傳照片</div>
+        </div>
+        <input type="file" id="avatar-upload" accept="image/*" style="display:none;" onchange="handleAvatarUpload(event)">
+        
+        <label style="color:#aaa; font-size:12px;">機器人隨機代碼 (若不上傳照片)</label>
+        <div style="display:flex; gap:5px; margin-bottom:10px;">
+            <input type="text" id="avatar-seed" class="custom-input" style="margin:0;">
+            <button class="small-btn" style="width:auto;" onclick="document.getElementById('avatar-seed').value = Math.random().toString(36).substring(7); document.getElementById('avatar-preview-img').src=''; userSettings.customAvatar=null;">🎲</button>
+        </div>
+
+        <label style="color:#aaa; font-size:12px;">遊戲暱稱</label>
+        <input type="text" id="edit-name" class="custom-input">
+        <button class="game-btn join-btn" onclick="saveProfile()" style="margin-top:20px;">儲存並套用</button>
+        <button class="custom-btn" onclick="closeAllMenus()" style="margin-top:10px;">關閉</button>
+    </div>
+</div>
+
+<div id="victory-screen">
+    <h1 id="victory-title" style="font-size:54px; margin:0; text-transform:uppercase; transition: 0.5s;">WINNER</h1>
+    <p id="victory-subtitle" style="font-size:22px; color:#fff; margin:20px 0 40px 0; font-weight:bold;"></p>
+    <button class="game-btn" style="width:200px; font-size:18px;" onclick="closeVictory()">返回大廳</button>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getDatabase, ref, set, get, update, onValue, onDisconnect, remove, off, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+    const firebaseConfig = { apiKey: "AIzaSyCxPppnUG864v3E2j1OzykzFmhLpsEJCSE", authDomain: "chess-1885a.firebaseapp.com", databaseURL: "https://chess-1885a-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "chess-1885a" };
+
+    let app, db, auth, currentUser;
+    let userSettings = { name: "Player_" + Math.floor(Math.random()*1000), seed: "chess", customAvatar: null };
+    
+    window.gameMode = 'lobby'; window.gameId = null; window.myColorIndex = 0; window.serverTimeOffset = 0; 
+    window.roomData = { status: 'waiting', turn: 0, players: {}, alive: [true, true, true, true], times: [0,0,0,0], lastMoveTime: 0, timeConfig: {mins: 5, inc: 5} };
+
+    const COLORS = [
+        { id: 0, name: 'Red', hex: '#d9534f', txt: '紅方' },    
+        { id: 1, name: 'Blue', hex: '#337ab7', txt: '藍方' },   
+        { id: 2, name: 'Yellow', hex: '#f0ad4e', txt: '黃方' }, 
+        { id: 3, name: 'Green', hex: '#5cb85c', txt: '綠方' }   
+    ];
+    window.COLORS = COLORS;
+
+    app = initializeApp(firebaseConfig); db = getDatabase(app); auth = getAuth(app);
+    onValue(ref(db, ".info/serverTimeOffset"), (snap) => { window.serverTimeOffset = snap.val() || 0; });
+
+    window.handleAvatarUpload = function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const cvs = document.createElement('canvas');
+                const ctx = cvs.getContext('2d');
+                const MAX_SIZE = 128; 
+                let w = img.width, h = img.height;
+                if (w > h) { if (w > MAX_SIZE) { h *= MAX_SIZE/w; w = MAX_SIZE; } } 
+                else { if (h > MAX_SIZE) { w *= MAX_SIZE/h; h = MAX_SIZE; } }
+                cvs.width = w; cvs.height = h;
+                ctx.drawImage(img, 0, 0, w, h);
+                userSettings.customAvatar = cvs.toDataURL('image/jpeg', 0.8);
+                document.getElementById('avatar-preview-img').src = userSettings.customAvatar;
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    signInAnonymously(auth);
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            currentUser = user;
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('ui').style.display = 'block';
+            updateProfileUI();
+            window.SpriteManager.initSprites(); 
+            window.engine.initBoard(); 
+            window.renderer.resize();    
+        }
+    });
+
+    function updateProfileUI() {
+        document.getElementById('user-name').innerText = userSettings.name;
+        document.getElementById('edit-name').value = userSettings.name;
+        document.getElementById('avatar-seed').value = userSettings.seed;
+        let previewSrc = userSettings.customAvatar ? userSettings.customAvatar : `https://api.dicebear.com/7.x/bottts/svg?seed=${userSettings.seed}`;
+        document.getElementById('avatar-preview-img').src = previewSrc;
+        document.getElementById('hud-avatar').src = previewSrc;
+    }
+
+    window.saveProfile = () => {
+        userSettings.name = document.getElementById('edit-name').value || "Player";
+        userSettings.seed = document.getElementById('avatar-seed').value || "chess";
+        updateProfileUI();
+        closeAllMenus();
+        if(window.gameId && window.myColorIndex >= 0) {
+            update(ref(db, `games4p/${window.gameId}/players/${window.myColorIndex}`), { name: userSettings.name, seed: userSettings.seed, customAvatar: userSettings.customAvatar || null });
+        }
+    };
+
+    document.getElementById('btn-practice').onclick = () => {
+        window.gameMode = 'practice'; window.myColorIndex = 0; 
+        let mins = parseInt(document.getElementById('time-mins').value) || 5, inc = parseInt(document.getElementById('time-inc').value) || 5, ms = mins * 60 * 1000;
+        window.TimeManager.updateFromServer({ times: [ms, ms, ms, ms], lastMoveTime: Date.now(), timeConfig: { mins: mins, inc: inc } });
+        window.roomData.status = 'playing'; window.engine.initBoard();
+        document.getElementById('lobby-buttons').style.display = 'none'; document.getElementById('btn-exit-practice').style.display = 'block'; document.getElementById('room-display').innerText = '單機沙盒模式';
+        closeAllMenus();
+    };
+
+    document.getElementById('btn-exit-practice').onclick = () => {
+        window.gameMode = 'lobby'; window.engine.initBoard();
+        document.getElementById('lobby-buttons').style.display = 'block'; document.getElementById('btn-exit-practice').style.display = 'none'; document.getElementById('room-display').innerText = '閒置中';
+        window.roomData.status = 'waiting'; 
+    };
+
+    document.getElementById('btn-create').onclick = () => {
+        window.gameMode = 'multiplayer'; window.gameId = Math.floor(1000 + Math.random() * 9000).toString(); window.engine.initBoard();
+        let mins = parseInt(document.getElementById('time-mins').value) || 5, inc = parseInt(document.getElementById('time-inc').value) || 5, ms = mins * 60 * 1000;
+        set(ref(db, 'games4p/' + window.gameId), { status: 'waiting', turn: 0, boardStr: JSON.stringify(window.engine.board), alive: [true, true, true, true], timeConfig: { mins: mins, inc: inc }, times: [ms, ms, ms, ms], lastMoveTime: serverTimestamp(), players: { 0: { uid: currentUser.uid, name: userSettings.name, seed: userSettings.seed, customAvatar: userSettings.customAvatar || null } } }).then(() => {
+            window.myColorIndex = 0; listenToRoom(); alert(`✅ 房間已建立！請朋友輸入房號：${window.gameId}`);
+            onDisconnect(ref(db, `games4p/${window.gameId}/players/0`)).remove();
+        });
+    };
+
+    document.getElementById('btn-join').onclick = () => {
+        const id = prompt('請輸入 4 位數房號：'); if (!id) return;
+        get(ref(db, 'games4p/' + id)).then((snapshot) => {
+            if (!snapshot.exists()) return alert("❌ 找不到房間！"); const data = snapshot.val(); if (data.status !== 'waiting') return alert("❌ 遊戲已開始或結束！");
+            let assigned = -1; for(let i=0; i<4; i++) { if(!data.players[i]) { assigned = i; break; } }
+            if(assigned === -1) return alert("❌ 房間已滿！");
+            window.gameMode = 'multiplayer'; window.myColorIndex = assigned; window.gameId = id;
+            update(ref(db, `games4p/${id}/players/${assigned}`), { uid: currentUser.uid, name: userSettings.name, seed: userSettings.seed, customAvatar: userSettings.customAvatar || null }).then(() => {
+                onDisconnect(ref(db, `games4p/${id}/players/${assigned}`)).remove();
+                if (Object.keys(data.players || {}).length === 3) update(ref(db, `games4p/${id}`), { status: 'playing', lastMoveTime: serverTimestamp() });
+                listenToRoom(); 
+            });
+        });
+    };
+
+    document.getElementById('btn-leave').onclick = () => {
+        if (!confirm("確定要退出房間嗎？")) return;
+        remove(ref(db, `games4p/${window.gameId}/players/${window.myColorIndex}`)); off(ref(db, 'games4p/' + window.gameId));
+        window.gameMode = 'lobby'; window.gameId = null; window.myColorIndex = 0;
+        document.getElementById('room-display').innerText = `閒置中`; document.getElementById('lobby-buttons').style.display = 'block'; document.getElementById('btn-leave').style.display = 'none';
+        window.roomData.status = 'waiting'; window.engine.initBoard(); 
+    };
+
+    function listenToRoom() {
+        document.getElementById('lobby-buttons').style.display = 'none'; document.getElementById('btn-leave').style.display = 'block';
+        onValue(ref(db, 'games4p/' + window.gameId), (snapshot) => {
+            const data = snapshot.val(); if(!data) { alert("房間已被關閉"); document.getElementById('btn-leave').click(); return; }
+            window.roomData = data; window.roomData.players = data.players || {};
+            document.getElementById('room-display').innerText = `房號：${window.gameId} (${data.status === 'playing' ? '對戰中' : '等候玩家 ' + Object.keys(window.roomData.players).length + '/4'})`;
+            if (data.boardStr && data.status === 'playing') {
+                window.engine.board = JSON.parse(data.boardStr); window.engine.currentTurn = data.turn; window.engine.alive = data.alive || [true, true, true, true];
+                window.TimeManager.updateFromServer(data);
+                const activePlayers = window.engine.alive.map((a, i) => a ? i : -1).filter(i => i !== -1);
+                if(activePlayers.length <= 1) window.showVictory(activePlayers.length === 1 ? activePlayers[0] : window.engine.currentTurn);
+            }
+        });
+    }
+
+    window.toggleMenu = () => { document.getElementById('menu-panel').classList.toggle('mobile-visible'); document.getElementById('menu-backdrop').classList.toggle('active'); };
+    window.closeAllMenus = () => { document.getElementById('custom-panel').classList.remove('active'); document.getElementById('menu-backdrop').classList.remove('active'); document.getElementById('menu-panel').classList.remove('mobile-visible'); };
+
+    window.showVictory = (colorId) => {
+        const screen = document.getElementById('victory-screen'); screen.style.display = 'flex';
+        document.getElementById('victory-title').style.color = COLORS[colorId].hex; document.getElementById('victory-title').style.textShadow = `0 0 30px ${COLORS[colorId].hex}`;
+        document.getElementById('victory-subtitle').innerText = `${COLORS[colorId].txt} 指揮官稱霸了棋盤！`; window.roomData.status = 'finished';
+    };
+    window.closeVictory = () => { document.getElementById('victory-screen').style.display = 'none'; if (window.gameMode === 'multiplayer') document.getElementById('btn-leave').click(); else if (window.gameMode === 'practice') document.getElementById('btn-exit-practice').click(); };
+
+    window.getServerTimestamp = serverTimestamp; window.getDbRef = ref; window.getDbUpdate = update; window.getDbInstance = () => db;
+    // =========================================
+    // 🖼️ 離屏渲染快取與頭像管理器
+    // =========================================
+    window.AvatarManager = {
+        images: {},
+        getAvatar(seed, customBase64) {
+            const key = customBase64 ? customBase64 : (seed || 'default');
+            if (!this.images[key]) {
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.onload = () => { if (window.renderer) window.renderer.draw(); };
+                img.src = customBase64 ? customBase64 : `https://api.dicebear.com/7.x/bottts/svg?seed=${seed}`;
+                this.images[key] = img;
+            }
+            return this.images[key];
+        }
+    };
+
+    window.SpriteManager = {
+        sprites: {},
+        initSprites() {
+            const res = 128; 
+            const icons = { 'K':'♚\uFE0E','Q':'♛\uFE0E','R':'♜\uFE0E','B':'♝\uFE0E','N':'♞\uFE0E','P':'♟\uFE0E' };
+            for (let c = 0; c < 4; c++) {
+                for (let type in icons) {
+                    const offCanvas = document.createElement('canvas'); offCanvas.width = res; offCanvas.height = res;
+                    const octx = offCanvas.getContext('2d');
+                    // ✨ 棋子放大 (Piece Upscaling): 比例從 0.75 提升到 0.85，讓棋子更飽滿
+                    octx.font = `bold ${res * 0.85}px Arial`; octx.textAlign = 'center'; octx.textBaseline = 'middle';
+                    octx.strokeStyle = '#000'; octx.lineWidth = res * 0.05;
+                    octx.strokeText(icons[type], res/2, res/2 + 5); octx.fillStyle = COLORS[c].hex; octx.fillText(icons[type], res/2, res/2 + 5);
+                    this.sprites[`${c}_${type}`] = offCanvas;
+                }
+            }
+        }
+    };
+
+    window.TimeManager = {
+        times: [0, 0, 0, 0], lastMoveTime: 0, config: { mins: 5, inc: 5 },
+        updateFromServer(data) { this.times = data.times || [0,0,0,0]; this.lastMoveTime = data.lastMoveTime || 0; this.config = data.timeConfig || { mins: 5, inc: 5 }; },
+        getRemainingTime(colorId, isCurrentTurn, isPlaying) {
+            let timeLeft = this.times[colorId];
+            if (isPlaying && isCurrentTurn && this.lastMoveTime) { timeLeft -= Math.max(0, (Date.now() + window.serverTimeOffset) - this.lastMoveTime); }
+            return Math.max(0, timeLeft);
+        },
+        computeNewTimesAfterMove(currentTurn) {
+            let newTimes = [...this.times];
+            let elapsed = this.lastMoveTime ? Math.max(0, (Date.now() + window.serverTimeOffset) - this.lastMoveTime) : 0;
+            newTimes[currentTurn] = Math.max(0, newTimes[currentTurn] - elapsed);
+            if (newTimes[currentTurn] > 0) newTimes[currentTurn] += (this.config.inc || 0) * 1000;
+            return newTimes;
+        }
+    };
+
+    window.engine = {
+        board: [], currentTurn: 0, alive: [true, true, true, true], selectedSq: null, legalMoves: [], isMoving: false, 
+        initBoard() {
+            this.board = Array.from({length: 14}, () => Array(14).fill(null));
+            for(let r=0; r<14; r++) for(let c=0; c<14; c++) if ((r<3 && c<3) || (r<3 && c>10) || (r>10 && c<3) || (r>10 && c>10)) this.board[r][c] = 'blank';
+            const order = ['R','N','B','Q','K','B','N','R'];
+            const place = (color, sr, sc, dr, dc) => {
+                for(let i=0; i<8; i++) {
+                    this.board[sr + dr*i][sc + dc*i] = { type: order[i], color: color, moved: false };
+                    let pr = sr + dr*i, pc = sc + dc*i;
+                    if(color===0) pr-=1; else if(color===1) pc+=1; else if(color===2) pr+=1; else if(color===3) pc-=1;
+                    this.board[pr][pc] = { type: 'P', color: color, moved: false };
+                }
+            };
+            place(0, 13, 3, 0, 1); place(1, 3, 0, 1, 0); place(2, 0, 10, 0, -1); place(3, 10, 13, -1, 0);
+            this.selectedSq = null; this.legalMoves = []; this.currentTurn = 0; this.alive = [true, true, true, true]; this.isMoving = false;
+        },
+        getPseudoMoves(r, c, bState) {
+            const p = bState[r][c]; if(!p || p==='blank') return []; let moves = [];
+            const add = (nr, nc) => {
+                if(nr<0 || nr>13 || nc<0 || nc>13 || bState[nr][nc]==='blank') return false;
+                if(!bState[nr][nc]) { moves.push({r:nr, c:nc}); return true; } 
+                if(bState[nr][nc].color !== p.color) moves.push({r:nr, c:nc, cap:true}); return false; 
+            };
+            if(p.type === 'R' || p.type === 'Q') { for(let i=1; add(r+i,c); i++); for(let i=1; add(r-i,c); i++); for(let i=1; add(r,c+i); i++); for(let i=1; add(r,c-i); i++); }
+            if(p.type === 'B' || p.type === 'Q') { for(let i=1; add(r+i,c+i); i++); for(let i=1; add(r-i,c-i); i++); for(let i=1; add(r+i,c-i); i++); for(let i=1; add(r-i,c+i); i++); }
+            if(p.type === 'N') { [[-2,-1],[-2,1],[2,-1],[2,1],[-1,-2],[-1,2],[1,-2],[1,2]].forEach(m => add(r+m[0], c+m[1])); }
+            if(p.type === 'K') { [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].forEach(m => add(r+m[0], c+m[1])); }
+            if(p.type === 'P') { 
+                let dr=0, dc=0; if(p.color===0) dr=-1; else if(p.color===1) dc=1; else if(p.color===2) dr=1; else if(p.color===3) dc=-1;
+                let f1r = r+dr, f1c = c+dc;
+                if(f1r>=0 && f1r<=13 && f1c>=0 && f1c<=13 && !bState[f1r][f1c]) {
+                    moves.push({r:f1r, c:f1c}); let f2r = r+dr*2, f2c = c+dc*2;
+                    if(!p.moved && f2r>=0 && f2r<=13 && f2c>=0 && f2c<=13 && !bState[f2r][f2c]) moves.push({r:f2r, c:f2c});
+                }
+                let caps = (p.color===0 || p.color===2) ? [[dr, -1], [dr, 1]] : [[-1, dc], [1, dc]];
+                caps.forEach(cap => { let nr = r+cap[0], nc = c+cap[1]; if(nr>=0 && nr<=13 && nc>=0 && nc<=13 && bState[nr][nc] && bState[nr][nc]!=='blank' && bState[nr][nc].color !== p.color) moves.push({r:nr, c:nc, cap:true}); });
+            }
+            return moves;
+        },
+        isAttacked(r, c, targetColor, bState) {
+            for(let i=0; i<14; i++) {
+                for(let j=0; j<14; j++) {
+                    const p = bState[i][j];
+                    if(p && p!=='blank' && p.color !== targetColor) {
+                        if (p.type === 'P') {
+                            let dr=0, dc=0; if(p.color===0) dr=-1; else if(p.color===1) dc=1; else if(p.color===2) dr=1; else if(p.color===3) dc=-1;
+                            let caps = (p.color===0 || p.color===2) ? [[dr, -1], [dr, 1]] : [[-1, dc], [1, dc]];
+                            for (let cap of caps) { if (i+cap[0] === r && j+cap[1] === c) return true; }
+                        } else {
+                            if(this.getPseudoMoves(i, j, bState).some(m => m.r === r && m.c === c)) return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        },
+        getLegalMoves(r, c, activeColor) {
+            const p = this.board[r][c]; if(!p || p.color !== activeColor) return [];
+            return this.getPseudoMoves(r, c, this.board).filter(move => {
+                let targetPiece = this.board[move.r][move.c]; this.board[move.r][move.c] = this.board[r][c]; this.board[r][c] = null;
+                let kR = -1, kC = -1; for(let i=0; i<14; i++) for(let j=0; j<14; j++) { let simP = this.board[i][j]; if(simP && simP.type === 'K' && simP.color === activeColor) { kR=i; kC=j; } }
+                let isSafe = false; if(kR !== -1) isSafe = !this.isAttacked(kR, kC, activeColor, this.board);
+                this.board[r][c] = this.board[move.r][move.c]; this.board[move.r][move.c] = targetPiece;
+                return isSafe;
+            });
+        },
+        isCheckmateOrStalemate(colorId) {
+            let kR = -1, kC = -1;
+            for(let i=0; i<14; i++) for(let j=0; j<14; j++) { let p = this.board[i][j]; if(p && p.type === 'K' && p.color === colorId) { kR=i; kC=j; } }
+            if(kR===-1) return true;
+            for(let i=0; i<14; i++) for(let j=0; j<14; j++) if(this.board[i][j] && this.board[i][j].color === colorId && this.getLegalMoves(i, j, colorId).length > 0) return false;
+            return true;
+        },
+        executeMove(fromR, fromC, toR, toC) {
+            let p = this.board[fromR][fromC]; p.moved = true;
+            if(p.type === 'P' && ((p.color===0 && toR===0) || (p.color===1 && toC===13) || (p.color===2 && toR===13) || (p.color===3 && toC===0))) p.type = 'Q'; 
+            this.board[toR][toC] = p; this.board[fromR][fromC] = null; this.selectedSq = null; this.legalMoves = [];
+            let newTimes = window.TimeManager.computeNewTimesAfterMove(this.currentTurn);
+            if (newTimes[this.currentTurn] <= 0) { this.alive[this.currentTurn] = false; this.removePiecesOf(this.currentTurn); }
+            let nextTurn = this.currentTurn; let checks = 0;
+            do {
+                nextTurn = (nextTurn + 1) % 4; checks++;
+                if(this.alive[nextTurn]) { if (newTimes[nextTurn] <= 0 || this.isCheckmateOrStalemate(nextTurn)) { this.alive[nextTurn] = false; this.removePiecesOf(nextTurn); } }
+            } while(!this.alive[nextTurn] && checks < 4);
+            this.currentTurn = nextTurn;
+            if (window.gameMode === 'practice') {
+                window.TimeManager.updateFromServer({ times: newTimes, lastMoveTime: Date.now() + window.serverTimeOffset });
+                const active = this.alive.filter(a=>a).length; if(active <= 1) window.showVictory(this.alive.findIndex(a=>a) !== -1 ? this.alive.findIndex(a=>a) : this.currentTurn);
+            } else if (window.gameMode === 'multiplayer' && window.gameId) {
+                window.getDbUpdate(window.getDbRef(window.getDbInstance(), 'games4p/' + window.gameId), { boardStr: JSON.stringify(this.board), turn: this.currentTurn, alive: this.alive, times: newTimes, lastMoveTime: window.getServerTimestamp() });
+            }
+        },
+        removePiecesOf(colorId) { for(let r=0; r<14; r++) for(let c=0; c<14; c++) if(this.board[r][c] && this.board[r][c].color === colorId) this.board[r][c] = null; }
+    };
+    // =========================================
+    // 🎨 畫布渲染與數學映射 (Canvas UI Alignment Refactoring)
+    // =========================================
+    const canvas = document.getElementById('chess-canvas');
+    const ctx = canvas.getContext('2d');
+    window.renderer = {
+        tileSize: 42, offset: {x:0, y:0}, zoom: 1, isDragging: false, dragStart: {x:0, y:0},
+
+        getVisualCoord(r, c) {
+            let vx = c, vy = r;
+            if (window.myColorIndex === 1) { vx = r; vy = 13 - c; } 
+            else if (window.myColorIndex === 2) { vx = 13 - c; vy = 13 - r; } 
+            else if (window.myColorIndex === 3) { vx = 13 - r; vy = c; } 
+            return { vx, vy };
+        },
+
+        getLogicalCoord(vx, vy) {
+            if (window.myColorIndex === 1) return { r: vx, c: 13 - vy };
+            if (window.myColorIndex === 2) return { r: 13 - vy, c: 13 - vx };
+            if (window.myColorIndex === 3) return { r: 13 - vx, c: vy };
+            return { r: vy, c: vx }; 
+        },
+
+        resize() {
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr; canvas.height = window.innerHeight * dpr;
+            canvas.style.width = `${window.innerWidth}px`; canvas.style.height = `${window.innerHeight}px`;
+            ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.scale(dpr, dpr);
+            this.zoom = window.innerWidth < 600 ? 0.6 : 0.9;
+        },
+
+        draw() {
+            if (!window.engine || !window.engine.board || window.engine.board.length === 0) return;
+
+            ctx.fillStyle = '#222222'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(window.innerWidth/2 + this.offset.x, window.innerHeight/2 + this.offset.y);
+            ctx.scale(this.zoom, this.zoom);
+
+            const ts = this.tileSize;
+            const bSize = 14 * ts;
+            const bCenter = bSize / 2;
+            ctx.translate(-bCenter, -bCenter);
+
+            // 畫棋盤與棋子
+            for(let r=0; r<14; r++) {
+                for(let c=0; c<14; c++) {
+                    if(window.engine.board[r][c] === 'blank') continue;
+                    
+                    const {vx, vy} = this.getVisualCoord(r, c);
+                    const x = vx * ts;
+                    const y = vy * ts;
+
+                    const isLight = (r+c)%2 === 0;
+                    ctx.fillStyle = isLight ? '#eeeed2' : '#769656'; 
+                    
+                    if(window.engine.selectedSq && window.engine.selectedSq.r === r && window.engine.selectedSq.c === c) ctx.fillStyle = 'rgba(246, 246, 105, 0.8)'; 
+                    ctx.fillRect(x, y, ts, ts);
+
+                    if(window.engine.legalMoves.some(m => m.r === r && m.c === c)) {
+                        ctx.beginPath();
+                        ctx.arc(x + ts/2, y + ts/2, ts*0.15, 0, Math.PI*2);
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'; ctx.fill();
+                    }
+
+                    const p = window.engine.board[r][c];
+                    if(p && p !== 'blank') {
+                        const spriteKey = `${p.color}_${p.type}`;
+                        if (window.SpriteManager.sprites[spriteKey]) {
+                            ctx.drawImage(window.SpriteManager.sprites[spriteKey], x, y, ts, ts);
+                        }
+                    }
+                }
+            }
+
+            // 畫內嵌於棋盤 3x3 挖空角落的 UI 面板
+            this.drawUIPanels();
+            ctx.restore();
+        },
+
+        drawUIPanels() {
+            const ts = this.tileSize;
+            
+            const bottomId = window.myColorIndex;
+            const leftId = (window.myColorIndex + 1) % 4;
+            const topId = (window.myColorIndex + 2) % 4;
+            const rightId = (window.myColorIndex + 3) % 4;
+
+            const corners = [
+                { id: topId,    cx: 1.5 * ts,  cy: 1.5 * ts },         // 左上角
+                { id: rightId,  cx: 12.5 * ts, cy: 1.5 * ts },         // 右上角
+                { id: leftId,   cx: 1.5 * ts,  cy: 12.5 * ts },        // 左下角
+                { id: bottomId, cx: 12.5 * ts, cy: 12.5 * ts }         // 右下角
+            ];
+
+            const isPlaying = (window.roomData && window.roomData.status === 'playing');
+
+            corners.forEach(corner => {
+                const pId = corner.id;
+                const isTurn = (window.engine.currentTurn === pId && isPlaying);
+                const isDead = !window.engine.alive[pId];
+                const colorHex = window.COLORS[pId].hex;
+
+                // ✨ UI Alignment Refactoring: 降低面板高度至 0.9，加寬確保文字容納空間
+                const boxW = 3.0 * ts; 
+                const boxH = 0.9 * ts; 
+                const barX = corner.cx - boxW / 2;
+                const barY = corner.cy - boxH / 2;
+
+                ctx.save();
+
+                // 1. 微圓角背景
+                ctx.fillStyle = isTurn ? 'rgba(230, 230, 230, 0.95)' : 'rgba(35, 35, 40, 0.9)';
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(barX, barY, boxW, boxH, 4);
+                else ctx.rect(barX, barY, boxW, boxH);
+                ctx.fill();
+
+                // 2. 彩色邊條
+                ctx.fillStyle = isDead ? '#444' : colorHex;
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(barX, barY, 6, boxH, [4, 0, 0, 4]);
+                else ctx.rect(barX, barY, 6, boxH);
+                ctx.fill();
+
+                // 準備資料
+                let seed = window.roomData.players[pId]?.seed || `bot${pId}`;
+                let customAvatar = window.roomData.players[pId]?.customAvatar || null;
+                let nameStr = window.roomData.players[pId]?.name || "Waiting...";
+                if(window.gameMode === 'practice') nameStr = window.COLORS[pId].txt;
+                let displayName = nameStr.length > 8 ? nameStr.substring(0, 8) + '..' : nameStr;
+
+                let timeLeft = window.TimeManager.getRemainingTime(pId, isTurn, isPlaying);
+                const mins = Math.floor(timeLeft / 60000);
+                const secs = Math.floor((timeLeft % 60000) / 1000).toString().padStart(2, '0');
+                const timeStr = isDead ? "OUT" : `${mins}:${secs}`;
+
+                // 3. ✨ 頭像完美內嵌：留 4px (Top/Bottom padding)
+                const avatarSize = boxH - 8; 
+                let avatarX = barX + 10;
+                let avatarY = barY + 4;
+                
+                // 4. 文字靠齊
+                let textX = avatarX + avatarSize + 8;
+                let nameY = barY + boxH * 0.35; // 上半部
+                let timeY = barY + boxH * 0.75; // 下半部
+                
+                // 畫出頭像
+                if (isDead) ctx.globalAlpha = 0.3;
+                let img = window.AvatarManager.getAvatar(seed, customAvatar);
+                if (img.complete && img.naturalWidth > 0) {
+                    ctx.drawImage(img, avatarX, avatarY, avatarSize, avatarSize);
+                } else {
+                    ctx.fillStyle = '#555';
+                    ctx.fillRect(avatarX, avatarY, avatarSize, avatarSize);
+                }
+                ctx.globalAlpha = 1.0;
+
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+
+                // 畫出姓名
+                ctx.fillStyle = isTurn ? '#222' : '#bbb';
+                ctx.font = `bold ${ts * 0.28}px sans-serif`;
+                ctx.fillText(displayName, textX, nameY);
+
+                // 畫出時間
+                ctx.fillStyle = isTurn ? '#000' : (isDead ? '#666' : '#fff');
+                ctx.font = `bold ${ts * 0.42}px monospace`;
+                ctx.fillText(timeStr, textX, timeY);
+
+                ctx.restore();
+            });
+        }
+    };
+
+    window.addEventListener('resize', () => window.renderer.resize());
+
+    let lastFrameTime = 0;
+    function animate(timestamp) {
+        if (timestamp - lastFrameTime > 16) { 
+            window.renderer.draw();
+            lastFrameTime = timestamp;
+        }
+        requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+
+    canvas.addEventListener('mousedown', e => { window.renderer.isDragging = true; window.renderer.dragStart = {x: e.clientX - window.renderer.offset.x, y: e.clientY - window.renderer.offset.y}; });
+    canvas.addEventListener('mousemove', e => { if(window.renderer.isDragging) { window.renderer.offset.x = e.clientX - window.renderer.dragStart.x; window.renderer.offset.y = e.clientY - window.renderer.dragStart.y; }});
+    canvas.addEventListener('mouseup', () => window.renderer.isDragging = false);
+    canvas.addEventListener('wheel', e => { window.renderer.zoom -= e.deltaY * 0.001; window.renderer.zoom = Math.max(0.4, Math.min(window.renderer.zoom, 3)); });
+
+    let touchStartDist = 0;
+    canvas.addEventListener('touchstart', e => {
+        if(e.touches.length === 1) { window.renderer.isDragging = true; window.renderer.dragStart = {x: e.touches[0].clientX - window.renderer.offset.x, y: e.touches[0].clientY - window.renderer.offset.y}; }
+        else if(e.touches.length === 2) { touchStartDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }
+    }, {passive: false});
+    canvas.addEventListener('touchmove', e => {
+        if(e.touches.length === 1 && window.renderer.isDragging) { 
+            window.renderer.offset.x = e.touches[0].clientX - window.renderer.dragStart.x; window.renderer.offset.y = e.touches[0].clientY - window.renderer.dragStart.y; 
+        } else if(e.touches.length === 2) { 
+            e.preventDefault(); 
+            const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); 
+            window.renderer.zoom *= (dist / touchStartDist); 
+            window.renderer.zoom = Math.max(0.4, Math.min(window.renderer.zoom, 3));
+            touchStartDist = dist; 
+        }
+    }, {passive: false});
+    canvas.addEventListener('touchend', () => window.renderer.isDragging = false);
+
+    canvas.addEventListener('click', e => {
+        if (window.gameMode === 'lobby') return; 
+
+        let activeColor;
+        if (window.gameMode === 'multiplayer') {
+            if (window.roomData.status !== 'playing' || window.engine.currentTurn !== window.myColorIndex || !window.engine.alive[window.myColorIndex]) return;
+            activeColor = window.myColorIndex;
+        } else if (window.gameMode === 'practice') {
+            if (window.roomData.status !== 'playing') return;
+            activeColor = window.engine.currentTurn;
+        }
+
+        let x = e.clientX - (window.innerWidth/2 + window.renderer.offset.x);
+        let y = e.clientY - (window.innerHeight/2 + window.renderer.offset.y);
+        x /= window.renderer.zoom; y /= window.renderer.zoom;
+
+        if (window.myColorIndex > 0) {
+            const rad = (-window.myColorIndex * 90) * Math.PI/180;
+            const nx = x*Math.cos(rad) - y*Math.sin(rad);
+            const ny = x*Math.sin(rad) + y*Math.cos(rad);
+            x = nx; y = ny;
+        }
+
+        const bCenter = (14 * window.renderer.tileSize) / 2;
+        x += bCenter; y += bCenter;
+
+        const vx = Math.floor(x / window.renderer.tileSize), vy = Math.floor(y / window.renderer.tileSize);
+        if(vx<0 || vx>=14 || vy<0 || vy>=14) return;
+
+        const logicalSq = window.renderer.getLogicalCoord(vx, vy);
+        const {r, c} = logicalSq;
+
+        if(window.engine.isMoving) return;
+
+        if(window.engine.selectedSq && window.engine.legalMoves.some(m => m.r === r && m.c === c)) {
+            window.engine.isMoving = true;
+            window.engine.executeMove(window.engine.selectedSq.r, window.engine.selectedSq.c, r, c);
+            window.engine.isMoving = false;
+        } else {
+            const p = window.engine.board[r][c];
+            if(p && p !== 'blank' && p.color === activeColor) {
+                window.engine.selectedSq = {r, c};
+                window.engine.legalMoves = window.engine.getLegalMoves(r, c, activeColor);
+            } else {
+                window.engine.selectedSq = null; window.engine.legalMoves = [];
+            }
+        }
+    });
+
+</script>
+</body>
+</html>        
 </textarea>
 
     <textarea id="game3" style="display:none;">
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>霓虹西洋棋：DTZ 單檔終極版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <style>
+        /* =========================================
+           1. 全域設定 (Global)
+           ========================================= */
+        body { 
+            margin: 0; padding: 0; overflow: hidden; 
+            background: #000; 
+            font-family: 'Microsoft JhengHei', 'Segoe UI', sans-serif; 
+            touch-action: none; color: white; 
+        }
+
+        canvas {
+            position: absolute;
+            top: 0; left: 0;
+            z-index: 0;
+            outline: none;
+        }
+
+        #ui { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            pointer-events: none; 
+            z-index: 100; 
+        }
+
+        .hud { pointer-events: auto; }
+
+        /* 手機選單按鈕預設隱藏 */
+        #mobile-menu-btn { display: none; }
+
+        .hud-container {
+            position: absolute; top: 20px; left: 20px; 
+            display: flex; flex-direction: column; gap: 15px;
+            width: 260px; pointer-events: auto;
+        }
+
+        .hud-box {
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid #444; 
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            backdrop-filter: blur(2px);
+        }
+
+        .user-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .name-text { font-weight: bold; font-size: 16px; color: #fff; display: block; }
+        .elo-text { font-size: 12px; color: #888; margin-bottom: 10px; }
+        .elo-text span { color: #00e5ff; font-weight: bold; }
+        .custom-btn {
+            width: 100%; padding: 8px; background: #222; border: 1px solid #444;
+            color: #ccc; border-radius: 6px; cursor: pointer; font-size: 13px; transition: 0.2s;
+        }
+        .custom-btn:hover { background: #333; color: #fff; border-color: #666; }
+
+        .lobby-title { color: #aaa; font-size: 12px; letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase; font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        .room-status { font-size: 14px; color: #00ff00; margin-bottom: 12px; font-weight: bold; text-shadow: 0 0 5px rgba(0, 255, 0, 0.5); }
+        .separator { height: 1px; background: #333; margin: 12px 0; }
+        .logout-btn { background: transparent; color: #666; border: none; font-size: 12px; width: 100%; cursor: pointer; }
+        .logout-btn:hover { color: #aaa; }
+
+        /* 登入介面 */
+        #auth-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.3); z-index: 2000; 
+            display: flex; justify-content: center; align-items: center; 
+            pointer-events: auto; backdrop-filter: blur(3px);
+        }
+        .auth-box {
+            background: rgba(15, 15, 20, 0.9); border: 1px solid #00e5ff;
+            padding: 30px; border-radius: 12px; width: 300px;
+            text-align: center; box-shadow: 0 0 50px rgba(0, 229, 255, 0.3);
+        }
+        .auth-box h2 { color: #00e5ff; margin-top: 0; letter-spacing: 2px; font-size: 24px; margin-bottom: 20px; }
+        .auth-input { 
+            width: 100%; padding: 12px; margin: 8px 0; 
+            background: rgba(0,0,0,0.5); border: 1px solid #444; 
+            color: #fff; border-radius: 6px; box-sizing: border-box; font-size: 16px; 
+        }
+        .auth-input:focus { border-color: #00e5ff; outline: none; background: rgba(0,0,0,0.8); }
+        .auth-btn { width: 100%; padding: 12px; margin-top: 15px; background: #00e5ff; color: #000; border: none; font-weight: bold; cursor: pointer; border-radius: 6px; transition: 0.3s; font-size: 16px; }
+        .guest-btn { width: 100%; padding: 10px; margin-top: 10px; background: transparent; color: #aaa; border: 1px solid #444; font-weight: bold; cursor: pointer; border-radius: 6px; transition: 0.3s; font-size: 14px; }
+        #nickname-container { display: none; }
+        .forgot-link { display: block; margin-top: 15px; color: #aaa; font-size: 12px; cursor: pointer; }
+
+        /* 右上角狀態面板 */
+        #status-panel { top: 20px; right: 20px; text-align: right; background: linear-gradient(to left, rgba(0, 255, 255, 0.1), rgba(0,0,0,0)); padding: 15px; border-right: 3px solid #00e5ff; }
+        h1 { margin: 0; font-size: 1.2rem; letter-spacing: 2px; color: #00e5ff; margin-bottom: 5px; }
+        #turn-txt { font-size: 1.5rem; font-weight: 900; color: #fff; }
+
+        /* 側邊面板 */
+        .side-panel {
+            position: fixed; top: 0; left: 0; bottom: 0; width: 320px;
+            background: rgba(12, 12, 18, 0.98); border-right: 1px solid #00e5ff;
+            box-shadow: 10px 0 50px rgba(0, 0, 0, 0.8);
+            transform: translateX(-105%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1200; padding: 25px; overflow-y: auto; pointer-events: auto;
+        }
+        .side-panel.active { transform: translateX(0); }
+        .side-panel h2 { color: #00e5ff; margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 15px; margin-bottom: 20px; font-size: 20px; }
+        .custom-section { margin-bottom: 30px; }
+        .custom-section h3 { font-size: 14px; color: #888; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .avatar-preview-container { width: 100px; height: 100px; margin: 0 auto 15px auto; position: relative; border-radius: 12px; background: #111; cursor: pointer; overflow: hidden; border: 2px solid #333; }
+        .avatar-img { width: 100%; height: 100%; object-fit: cover; }
+        #avatar-hint { position: absolute; bottom: 0; width: 100%; text-align: center; background: rgba(0,0,0,0.7); font-size: 10px; padding: 3px 0; color: #fff; transform: translateY(100%); transition: 0.3s; }
+        .avatar-preview-container:hover #avatar-hint { transform: translateY(0); }
+        .avatar-frame { position: absolute; top: -5px; left: -5px; right: -5px; bottom: -5px; border-radius: 12px; border: 3px solid transparent; pointer-events: none; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
+        .skin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+        .skin-item { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 10px; text-align: center; cursor: pointer; transition: 0.2s; position: relative; }
+        .skin-item:hover { background: #222; border-color: #666; }
+        .skin-item.selected { border-color: #00e5ff; background: rgba(0, 229, 255, 0.1); box-shadow: 0 0 10px rgba(0, 229, 255, 0.2); }
+        .skin-item.locked { opacity: 0.5; cursor: not-allowed; }
+        .skin-icon { font-size: 24px; margin-bottom: 5px; }
+        .skin-name { font-size: 10px; color: #aaa; }
+        .skin-item.selected .skin-name { color: #00e5ff; font-weight: bold; }
+
+        .frame-bronze { border-color: #cd7f32; }
+        .frame-silver { border-color: #c0c0c0; box-shadow: 0 0 10px #c0c0c0; }
+        .frame-gold { border-color: #ffd700; box-shadow: 0 0 15px #ffd700; }
+        .frame-diamond { border-color: #b9f2ff; box-shadow: 0 0 20px #b9f2ff, inset 0 0 10px #b9f2ff; }
+        .frame-master { border-color: #ff0055; box-shadow: 0 0 25px #ff0055, inset 0 0 15px #ff0055; animation: pulse 2s infinite; }
+
+        .custom-input { width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 4px; box-sizing: border-box; margin-bottom: 10px; outline: none; }
+        .custom-input:focus { border-color: #00e5ff; }
+        .small-btn { background: #333; border: 1px solid #555; color: #fff; cursor: pointer; border-radius: 4px; padding: 8px 12px; font-size: 12px; white-space: nowrap;}
+        .save-btn { margin-top: 20px; }
+        .mini-avatar { width: 45px; height: 45px; border-radius: 8px; border: 2px solid #333; object-fit: cover; }
+
+        #loading { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; display: flex; justify-content: center; align-items: center; color: #00e5ff; font-weight: bold; z-index: 1500; }
+        #footer-watermark { position: absolute; bottom: 10px; width: 100%; text-align: center; color: rgba(255,255,255,0.3); font-size: 12px; }
+
+        button.game-btn { background: #00e5ff; color: #000; border: none; padding: 10px; margin-top: 8px; width: 100%; font-weight: bold; cursor: pointer; transition: 0.3s; border-radius: 4px; }
+        button.join-btn { background: #ff0055; color: #fff; }
+        button.game-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+        #menu-backdrop { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 900; pointer-events: auto; }
+        #menu-backdrop.active { display: block; }
+
+        /* =========================================
+           2. 手機版專用設定 (Mobile Overrides)
+           ========================================= */
+        @media (max-width: 600px) {
+            #mobile-menu-btn { 
+                display: flex; 
+                position: absolute; 
+                bottom: 30px; left: 20px; 
+                width: 50px; height: 50px; 
+                background: rgba(0,0,0,0.8); 
+                border: 2px solid #00e5ff; 
+                border-radius: 50%; 
+                color: #00e5ff; 
+                justify-content: center; align-items: center; 
+                font-size: 14px; 
+                cursor: pointer; 
+                z-index: 3000; 
+                pointer-events: auto; 
+                box-shadow: 0 0 15px rgba(0,229,255,0.5);
+                font-weight: bold;
+                user-select: none;
+                -webkit-tap-highlight-color: transparent;
+            }
+
+            .hud-container { 
+                display: flex; 
+                width: 100%; box-sizing: border-box;
+                position: fixed; top: auto; bottom: 0; left: 0;
+                transform: translateY(110%); 
+                z-index: 2500; 
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                padding: 10px 20px 80px 20px; 
+                background: rgba(10, 10, 15, 0.95);
+                border-top: 2px solid #00e5ff;
+                pointer-events: auto;
+            }
+
+            .hud-container.mobile-visible {
+                transform: translateY(0);
+            }
+
+            .hud-box {
+                background: transparent; border: none; box-shadow: none; padding: 0; margin-bottom: 10px;
+            }
+            .profile-box { border-bottom: 1px solid #333; padding-bottom: 10px; }
+            
+            #status-panel { 
+                top: 15px; left: 50%; transform: translateX(-50%); width: auto; 
+                background: rgba(0,0,0,0.6); border-radius: 30px; padding: 5px 20px; 
+                white-space: nowrap; right: auto; border: 1px solid #333;
+                z-index: 2000;
+            }
+            #status-panel h1 { display: none; }
+
+            .side-panel { width: 90%; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="loading">正在載入霓虹世界...</div>
+
+<div id="auth-modal">
+    <div class="auth-box">
+        <h2>DTZ CHESS</h2>
+        <div id="auth-error" style="color:#ff0055; font-size:12px; margin-bottom:10px;"></div>
+        
+        <div id="email-login-form">
+            <input type="email" id="email" class="auth-input" placeholder="電子信箱">
+            <input type="password" id="password" class="auth-input" placeholder="密碼">
+            <div id="nickname-container">
+                <input type="text" id="nickname" class="auth-input" placeholder="設定您的暱稱">
+            </div>
+            <button id="auth-action-btn" class="auth-btn">進入世界</button>
+            <div class="forgot-link" id="forgot-pw">忘記密碼？</div>
+        </div>
+        
+        <button id="guest-btn" class="guest-btn">訪客登入</button>
+    </div>
+</div>
+
+<div id="ui" style="display:none;">
+    
+    <div id="mobile-menu-btn" onclick="toggleMenu()">☰ 選單</div>
+    <div id="menu-backdrop" onclick="closeAllMenus()"></div>
+
+    <div id="menu-panel" class="hud-container">
+        <div class="hud-box profile-box">
+            <div class="user-card-header">
+                <img id="hud-avatar" src="" class="mini-avatar">
+                <div class="user-info">
+                    <span id="user-name" class="name-text">Player</span>
+                    <span id="user-rank" class="rank-badge rank-bronze">銅牌</span>
+                </div>
+            </div>
+            <div class="elo-text">
+                戰力積分 (ELO): <span id="user-elo">0</span>
+            </div>
+            <button id="btn-custom" class="custom-btn">🛠️ 個人化設定</button>
+        </div>
+
+        <div class="hud-box action-box">
+            <div class="lobby-title">對戰大廳</div>
+            <div id="room-display" class="room-status">狀態：閒置中</div>
+            
+            <div id="lobby-buttons">
+                <button id="btn-create" class="game-btn">創建房間 (執白)</button>
+                <button id="btn-join" class="game-btn join-btn">加入房間 (執黑)</button>
+            </div>
+
+            <button id="btn-leave" class="game-btn" style="display:none; background:#0088ff; color:white; margin-top:10px;">退出房間 / 結束連線</button>
+            
+            <div class="separator"></div>
+            <button id="btn-logout" class="logout-btn">登出</button>
+        </div>
+    </div>
+
+    <div id="custom-panel" class="side-panel">
+        <h2>個人化設定</h2>
+        
+        <div class="custom-section">
+            <h3>👤 指揮官識別證</h3>
+            <div class="avatar-preview-container" onclick="triggerAvatarUpload()">
+                <img id="my-avatar" src="" alt="Avatar" class="avatar-img">
+                <div id="my-frame" class="avatar-frame"></div>
+                <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
+                <div id="avatar-hint">更換圖片</div>
+            </div>
+            <div id="guest-avatar-controls">
+                <div style="display:flex; gap:5px; margin-bottom: 10px;">
+                    <input type="text" id="avatar-seed" class="custom-input" placeholder="輸入代碼" style="margin:0;">
+                    <button id="btn-random-avatar" class="small-btn">🎲 隨機</button>
+                </div>
+            </div>
+            <label>顯示暱稱:</label>
+            <input type="text" id="edit-name" class="custom-input">
+        </div>
+
+        <div class="custom-section">
+            <h3>♟️ 棋子模型 (Skins)</h3>
+            <div class="skin-grid" id="piece-skin-grid">
+                <div class="skin-item selected" onclick="previewSkin('piece', 'neon', this)">
+                    <div class="skin-icon">💠</div>
+                    <div class="skin-name">電馭霓虹</div>
+                </div>
+                <div class="skin-item" onclick="previewSkin('piece', 'classic', this)">
+                    <div class="skin-icon">♟️</div>
+                    <div class="skin-name">經典實體</div>
+                </div>
+                <div class="skin-item locked">
+                    <div class="skin-icon">🔒</div>
+                    <div class="skin-name">敬請期待</div>
+                </div>
+            </div>
+            <input type="hidden" id="selected-piece-style" value="neon">
+        </div>
+
+        <div class="custom-section">
+            <h3>🔲 戰場材質 (Map)</h3>
+            <div class="skin-grid" id="board-skin-grid">
+                <div class="skin-item selected" onclick="previewSkin('board', 'neon', this)">
+                    <div class="skin-icon">🌌</div>
+                    <div class="skin-name">全息投影</div>
+                </div>
+                <div class="skin-item locked">
+                    <div class="skin-icon">🔒</div>
+                    <div class="skin-name">敬請期待</div>
+                </div>
+            </div>
+            <input type="hidden" id="selected-board-style" value="neon">
+        </div>
+        
+        <button id="btn-save-custom" class="game-btn save-btn">保存並套用</button>
+        <button onclick="closeAllMenus()" class="game-btn" style="background:#333; margin-top:10px;">關閉面板</button>
+    </div>
+
+    <div id="status-panel" class="hud">
+        <h1>NEON CHESS</h1>
+        <div id="turn-txt">等待對戰</div>
+        <div id="opponent-info" style="font-size: 12px; color: #aaa; margin-top:5px;">對手: ---</div>
+    </div>
+    <div id="footer-watermark">Made by DTZ</div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getDatabase, ref, set, get, update, onValue, off, remove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInAnonymously, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { Sky } from 'three/addons/objects/Sky.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const CONFIG = {
+        grassCount: isMobile ? 5000 : 80000,
+        treeCount: isMobile ? 50 : 850,
+        shadowSize: isMobile ? 512 : 2048, 
+        pixelRatio: isMobile ? Math.min(window.devicePixelRatio, 1.2) : window.devicePixelRatio
+    };
+
+    let scene, camera, renderer, controls, raycaster, mouse, clock;
+    let grassMat, cloudParticles = [];
+    let tilesMap = {}, piecesMap = {};
+    let visSelectedSq = null; 
+    let customModels = null;
+    const BOARD_HEIGHT = 15;
+    let currentSettings = { pieceStyle: 'neon', boardStyle: 'neon' };
+    let isLoginRotating = false; 
+    let opponentCursorMesh = null;
+
+    const GEOMETRIES = {
+        cylBase: new THREE.CylinderGeometry(0.4, 0.45, 0.2, 32),
+        pawnBody: new THREE.CylinderGeometry(0.15, 0.35, 0.6, 16),
+        pawnHead: new THREE.SphereGeometry(0.25, 32, 32),
+        rookBody: new THREE.CylinderGeometry(0.35, 0.35, 0.8, 32),
+        rookHead: new THREE.CylinderGeometry(0.4, 0.4, 0.3, 32),
+        knightBody: new THREE.CylinderGeometry(0.25, 0.35, 0.6, 16),
+        knightHead: new THREE.BoxGeometry(0.3, 0.6, 0.2),
+        bishopBody: new THREE.CylinderGeometry(0.15, 0.35, 1.0, 16),
+        queenBody: new THREE.CylinderGeometry(0.2, 0.4, 1.4, 32),
+        kingBody: new THREE.CylinderGeometry(0.25, 0.45, 1.6, 32),
+        sphereSmall: new THREE.SphereGeometry(0.15),
+        boxCross: new THREE.BoxGeometry(0.1, 0.4, 0.1),
+        torus: new THREE.TorusGeometry(0.2, 0.05, 16, 32)
+    };
+
+    const MATERIALS = {
+        white: new THREE.MeshStandardMaterial({color:0xeeeeff, roughness:0.2, metalness:0.5}),
+        black: new THREE.MeshStandardMaterial({color:0x222222, roughness:0.3, metalness:0.8}),
+        glowW: new THREE.MeshStandardMaterial({color:0x00e5ff, emissive:0x00e5ff, emissiveIntensity:2}),
+        glowB: new THREE.MeshStandardMaterial({color:0xff0055, emissive:0xff0055, emissiveIntensity:2}),
+        classicWhite: new THREE.MeshPhongMaterial({color: 0xdddddd, shininess: 30}),
+        classicBlack: new THREE.MeshPhongMaterial({color: 0x111111, shininess: 30}),
+        cursorGhost: new THREE.MeshBasicMaterial({color: 0xffaa00, transparent: true, opacity: 0.6})
+    };
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCxPppnUG864v3E2j1OzykzFmhLpsEJCSE",
+        authDomain: "chess-1885a.firebaseapp.com",
+        databaseURL: "https://chess-1885a-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "chess-1885a",
+        storageBucket: "chess-1885a.firebasestorage.app",
+        messagingSenderId: "824383572856",
+        appId: "1:824383572856:web:7c663d6bf0f970f6acd68d",
+        measurementId: "G-0EMJ4W2KLS"
+    };
+
+    let app, db, auth;
+    let currentUser = null;
+    let gameId = null;
+    let playerColor = 'w';
+    let isOnline = false;
+    let isProcessing = false;
+    let game = null;
+    let selectedSquare = null; 
+    let isRegistering = false;
+    let userSettings = { 
+        avatarSeed: "Bot", avatarImage: null, name: "Commander",
+        pieceStyle: "neon", boardStyle: "neon"
+    };
+    let lastCursorUpdate = 0;
+    let lastCameraUpdate = 0;
+    let isGuestLoginIntent = false;
+
+    function init3D(container, onClickCallback, onCameraUpdate) {
+        clock = new THREE.Clock();
+        scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0xff9966, 0.0008);
+        scene.background = new THREE.Color(0x331111);
+
+        camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 6000);
+        camera.position.set(0, 60, 100);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setPixelRatio(CONFIG.pixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        if (!isMobile) {
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        }
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.1;
+        
+        const existingCanvas = document.querySelector('canvas');
+        if (existingCanvas) existingCanvas.remove();
+        document.body.appendChild(renderer.domElement);
+
+        controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.maxPolarAngle = Math.PI / 2.05;
+        controls.minDistance = 10; controls.maxDistance = 450;
+        controls.target.set(0, BOARD_HEIGHT, 0);
+
+        controls.addEventListener('change', () => {
+            if(onCameraUpdate) onCameraUpdate(camera.position);
+        });
+
+        setupSunsetLighting();
+        loadCustomModels();
+        
+        requestAnimationFrame(() => {
+            createFloatingBoard();
+            createProceduralTerrain();
+            setTimeout(createVegetation, 50);
+            setTimeout(createHighAltitudeClouds, 100);
+        });
+
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
+
+        window.addEventListener('resize', onResize);
+        window.addEventListener('touchstart', (e) => onTouchStart(e, onClickCallback), {passive: false});
+        window.addEventListener('click', (e) => onMouseClick(e, onClickCallback));
+        
+        animate();
+    }
+
+    function setLoginMode(enabled) {
+        isLoginRotating = enabled;
+        if(controls) {
+            controls.autoRotate = enabled;
+            controls.autoRotateSpeed = 0.5;
+        }
+        if(!enabled) moveCamera({x: 0, y: 60, z: 100}, {x:0, y:BOARD_HEIGHT, z:0});
+    }
+
+    function updateOpponentGhost(pos) {
+        if (!pos) return;
+        if (!opponentCursorMesh) {
+            const geo = new THREE.SphereGeometry(1.5, 16, 16);
+            opponentCursorMesh = new THREE.Mesh(geo, MATERIALS.cursorGhost);
+            scene.add(opponentCursorMesh);
+            const light = new THREE.PointLight(0xffaa00, 1, 10);
+            opponentCursorMesh.add(light);
+        }
+
+        if(window.TWEEN) {
+            new TWEEN.Tween(opponentCursorMesh.position).to({x: pos.x, y: pos.y, z: pos.z}, 120).start();
+        } else {
+            opponentCursorMesh.position.set(pos.x, pos.y, pos.z);
+        }
+    }
+
+    function updateTheme(settings) {
+        if (settings.pieceStyle) currentSettings.pieceStyle = settings.pieceStyle;
+        if (settings.boardStyle) currentSettings.boardStyle = settings.boardStyle;
+        if (window.gameInstance) syncBoardVisuals(window.gameInstance);
+    }
+
+    function loadCustomModels() {
+        const loader = new GLTFLoader();
+        loader.load('./models/chess_set.glb', (gltf) => { customModels = gltf.scene; }, undefined, (error) => {});
+    }
+
+    function moveCamera(targetPos, lookAtPos) {
+        if(window.TWEEN) {
+            new TWEEN.Tween(camera.position).to(targetPos, 2000).easing(TWEEN.Easing.Cubic.Out).start();
+        } else {
+            camera.position.set(targetPos.x, targetPos.y, targetPos.z);
+        }
+        if(lookAtPos) controls.target.set(lookAtPos.x, lookAtPos.y, lookAtPos.z);
+    }
+
+    function syncBoardVisuals(chessInstance) {
+        if(!window.gameInstance) window.gameInstance = chessInstance;
+        for(let sq in piecesMap) scene.remove(piecesMap[sq]); 
+        piecesMap = {};
+        const b = chessInstance.board();
+        for(let r=0; r<8; r++){
+            for(let c=0; c<8; c++){
+                const p = b[r][c];
+                if(p){
+                    const sq = String.fromCharCode(97+c)+(8-r);
+                    const s = createOptimizedPiece(p.type, p.color);
+                    s.position.set(c-3.5, BOARD_HEIGHT, r-3.5);
+                    scene.add(s);
+                    piecesMap[sq] = s;
+                }
+            }
+        }
+    }
+
+    function highlightSquare(sq, moves) {
+        clr();
+        visSelectedSq = sq;
+        if(tilesMap[sq]) {
+            tilesMap[sq].material.emissive.setHex(0xffff00);
+            tilesMap[sq].material.emissiveIntensity = 0.8;
+        }
+        moves.forEach(m => {
+            if(tilesMap[m.to]) {
+                tilesMap[m.to].material.emissive.setHex(m.captured ? 0xff3300 : 0x00aaff);
+                tilesMap[m.to].material.emissiveIntensity = 0.5;
+            }
+        });
+    }
+
+    function clearHighlights() { clr(); visSelectedSq = null; }
+
+    function animateMove(move, callback) {
+        clr();
+        const s = piecesMap[move.from];
+        const targetTile = tilesMap[move.to];
+        if(!s || !targetTile) { if(callback) callback(); return; }
+
+        const ePos = targetTile.position.clone();
+        if(move.captured && piecesMap[move.to]) scene.remove(piecesMap[move.to]);
+        
+        if(window.TWEEN) {
+            new TWEEN.Tween(s.position).to(ePos, 200).easing(TWEEN.Easing.Quadratic.Out)
+                .onComplete(() => { 
+                    if(move.promotion) scene.remove(s); 
+                    if(callback) callback(); 
+                }).start();
+        } else {
+            s.position.copy(ePos);
+            if(callback) callback();
+        }
+    }
+
+    function createOptimizedPiece(t, c) {
+        if (customModels && currentSettings.pieceStyle === 'neon') { 
+            const pieceName = getPieceName(t, c);
+            const modelPiece = customModels.getObjectByName(pieceName);
+            if (modelPiece) {
+                const clone = modelPiece.clone();
+                clone.scale.setScalar(2); 
+                return clone;
+            }
+        }
+
+        const g = new THREE.Group();
+
+        if (currentSettings.pieceStyle === 'classic') {
+            const mat = c === 'w' ? MATERIALS.classicWhite : MATERIALS.classicBlack;
+            const base = new THREE.Mesh(GEOMETRIES.cylBase, mat);
+            base.position.y = 0.1; if(!isMobile) base.castShadow = true;
+            g.add(base);
+
+            if(t === 'p') {
+                const body = new THREE.Mesh(GEOMETRIES.pawnBody, mat); body.position.y = 0.5;
+                const head = new THREE.Mesh(GEOMETRIES.pawnHead, mat); head.position.y = 0.95;
+                g.add(body, head);
+            } else if (t === 'k') {
+                 const body = new THREE.Mesh(GEOMETRIES.kingBody, mat); body.position.y = 1.0;
+                 const top = new THREE.Mesh(GEOMETRIES.boxCross, mat); top.position.y = 1.95; 
+                 g.add(body, top);
+            } else {
+                const body = new THREE.Mesh(GEOMETRIES.rookBody, mat); body.position.y = 0.6;
+                g.add(body);
+            }
+        } else {
+            const mat = c === 'w' ? MATERIALS.white : MATERIALS.black;
+            const glow = c === 'w' ? MATERIALS.glowW : MATERIALS.glowB;
+            const base = new THREE.Mesh(GEOMETRIES.cylBase, mat);
+            base.position.y = 0.1; if(!isMobile) base.castShadow = true;
+            g.add(base);
+
+            if(t === 'p') {
+                const body = new THREE.Mesh(GEOMETRIES.pawnBody, mat); body.position.y = 0.5; if(!isMobile) body.castShadow = true;
+                const head = new THREE.Mesh(GEOMETRIES.pawnHead, mat); head.position.y = 0.95; if(!isMobile) head.castShadow = true;
+                g.add(body, head);
+            } else if(t === 'r') {
+                const body = new THREE.Mesh(GEOMETRIES.rookBody, mat); body.position.y = 0.6; if(!isMobile) body.castShadow = true;
+                const head = new THREE.Mesh(GEOMETRIES.rookHead, mat); head.position.y = 1.1; if(!isMobile) head.castShadow = true;
+                const top = new THREE.Mesh(GEOMETRIES.torus, glow); top.position.y = 1.25; top.rotation.x = Math.PI/2;
+                g.add(body, head, top);
+            } else if(t === 'n') {
+                const body = new THREE.Mesh(GEOMETRIES.knightBody, mat); body.position.y = 0.5; if(!isMobile) body.castShadow = true;
+                const head = new THREE.Mesh(GEOMETRIES.knightHead, mat); head.position.set(0, 1.0, 0.1); head.rotation.x = -Math.PI/6; if(!isMobile) head.castShadow = true;
+                const eye = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.05), glow); eye.position.set(0, 1.1, -0.15); eye.rotation.x = -Math.PI/6;
+                g.add(body, head, eye); if(c === 'b') g.rotation.y = Math.PI;
+            } else if(t === 'b') {
+                const body = new THREE.Mesh(GEOMETRIES.bishopBody, mat); body.position.y = 0.7; if(!isMobile) body.castShadow = true;
+                const neck = new THREE.Mesh(GEOMETRIES.pawnBody, mat); neck.scale.set(0.5, 0.5, 0.5); neck.position.y = 1.35; 
+                const top = new THREE.Mesh(GEOMETRIES.sphereSmall, glow); top.position.y = 1.7;
+                g.add(body, neck, top);
+            } else if(t === 'q') {
+                const body = new THREE.Mesh(GEOMETRIES.queenBody, mat); body.position.y = 0.9; if(!isMobile) body.castShadow = true;
+                const top = new THREE.Mesh(GEOMETRIES.sphereSmall, glow); top.position.y = 1.7; top.scale.setScalar(1.5);
+                g.add(body, top);
+            } else if(t === 'k') {
+                const body = new THREE.Mesh(GEOMETRIES.kingBody, mat); body.position.y = 1.0; if(!isMobile) body.castShadow = true;
+                const top = new THREE.Mesh(GEOMETRIES.boxCross, glow); top.position.y = 1.95;
+                g.add(body, top);
+            }
+        }
+        return g;
+    }
+
+    function getPieceName(type, color) {
+        const names = { 'p': 'Pawn', 'r': 'Rook', 'n': 'Knight', 'b': 'Bishop', 'q': 'Queen', 'k': 'King' };
+        const c = color === 'w' ? 'White' : 'Black';
+        return `${c}_${names[type]}`;
+    }
+
+    function clr(){for(let s in tilesMap){tilesMap[s].material.emissive.setHex(0x000000);tilesMap[s].material.emissiveIntensity=0;}}
+    
+    // ✨ 修正 2：確保點擊選單按鈕時，不會被 3D 場景攔截 ✨
+    function onTouchStart(e, cb){
+        if (e.target.closest('.auth-box') || e.target.closest('.hud-container') || e.target.closest('.side-panel') || e.target.id === 'mobile-menu-btn' || e.target.id === 'menu-backdrop' || e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') return;
+        if(e.touches.length > 1) return;
+        e.preventDefault(); 
+        mouse.x=(e.touches[0].clientX/window.innerWidth)*2-1;mouse.y=-(e.touches[0].clientY/window.innerHeight)*2+1;
+        chk(cb);
+    }
+    function onMouseClick(e, cb){
+        if (e.target.closest('.auth-box') || e.target.closest('.hud-container') || e.target.closest('.side-panel') || e.target.id === 'mobile-menu-btn' || e.target.id === 'menu-backdrop' || e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') return;
+        mouse.x=(e.clientX/window.innerWidth)*2-1;mouse.y=-(e.clientY/window.innerHeight)*2+1;
+        chk(cb);
+    }
+    
+    function chk(cb){
+        raycaster.setFromCamera(mouse,camera);const i=raycaster.intersectObjects(Object.values(tilesMap));
+        if(i.length>0 && cb) cb(i[0].object.userData.square);
+    }
+    function onResize(){camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);}
+    function setupSunsetLighting(){
+        const ambient=new THREE.AmbientLight(0xffccaa,0.75);scene.add(ambient);
+        const sunLight=new THREE.DirectionalLight(0xff8800,3.2);
+        sunLight.position.set(-300,100,-300);
+        if(!isMobile) { sunLight.castShadow=true; sunLight.shadow.mapSize.set(CONFIG.shadowSize,CONFIG.shadowSize); const d=700;sunLight.shadow.camera.left=-d;sunLight.shadow.camera.right=d;sunLight.shadow.camera.top=d;sunLight.shadow.camera.bottom=-d; }
+        scene.add(sunLight);
+        const sky=new Sky();sky.scale.setScalar(450000);scene.add(sky);
+        const uniforms=sky.material.uniforms;
+        uniforms['turbidity'].value=10;uniforms['rayleigh'].value=3; uniforms['mieCoefficient'].value=0.005;uniforms['mieDirectionalG'].value=0.8; uniforms['sunPosition'].value.copy(sunLight.position);
+    }
+    function getTerrainHeight(x, z) {
+        const dist = Math.sqrt(x*x + z*z);
+        if (dist < 400) return -12 + Math.sin(x*0.004)*Math.cos(z*0.004)*2.0;
+        const blend = smoothstep(400, 700, dist);
+        let h = blend * 140; 
+        h += Math.sin(x * 0.015) * Math.cos(z * 0.015) * 25; h += Math.sin(x * 0.03 + z * 0.02) * 10;
+        return h - 12;
+    }
+    function smoothstep(min, max, value) { var x = Math.max(0, Math.min(1, (value - min) / (max - min))); return x * x * (3 - 2 * x); }
+    function createProceduralTerrain(){
+        const geo=new THREE.PlaneGeometry(3500,3500,isMobile?100:180,isMobile?100:180); geo.rotateX(-Math.PI/2); const pos=geo.attributes.position; const colors=[]; const c1=new THREE.Color(0x226622);const c2=new THREE.Color(0x665544);
+        for(let i=0;i<pos.count;i++){ const h=getTerrainHeight(pos.getX(i),pos.getZ(i)); pos.setY(i,h); const b=smoothstep(-12,8,h); const c=c1.clone().lerp(c2,b); colors.push(c.r,c.g,c.b); }
+        geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3)); geo.computeVertexNormals();
+        const mat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.9,metalness:0.1,flatShading:true}); const mesh=new THREE.Mesh(geo,mat); if(!isMobile) mesh.receiveShadow=true; scene.add(mesh);
+    }
+    function createVegetation(){
+        const grp=new THREE.Group(); const lMat=new THREE.MeshStandardMaterial({color:0x1a3d1a,roughness:0.9,flatShading:true});const tMat=new THREE.MeshStandardMaterial({color:0x3d2817,roughness:1.0});const lGeo=new THREE.DodecahedronGeometry(4,0);const tGeo=new THREE.CylinderGeometry(0.7,1.0,6,6);tGeo.translate(0,3,0);for(let i=0;i<CONFIG.treeCount;i++){const a=Math.random()*Math.PI*2;const r=70+Math.random()*380;const x=Math.cos(a)*r;const z=Math.sin(a)*r;const h=getTerrainHeight(x,z);const tr=new THREE.Group();const t=new THREE.Mesh(tGeo,tMat);if(!isMobile) t.castShadow=true;tr.add(t);for(let j=0;j<3;j++){const l=new THREE.Mesh(lGeo,lMat);l.position.set((Math.random()-0.5)*5,5.5+Math.random()*3.5,(Math.random()-0.5)*5);l.scale.setScalar(0.8+Math.random()*0.4);if(!isMobile) l.castShadow=true;tr.add(l);}tr.position.set(x,h,z);tr.scale.setScalar(0.9+Math.random()*0.6);grp.add(tr);}scene.add(grp);
+        const bGeo=new THREE.PlaneGeometry(0.3,1.5);bGeo.translate(0,0.75,0); grassMat=new THREE.MeshStandardMaterial({color:0x226622,side:THREE.DoubleSide});
+        grassMat.onBeforeCompile=s=>{s.uniforms.time={value:0};s.vertexShader=`uniform float time;\n`+s.vertexShader;s.vertexShader=s.vertexShader.replace(`#include <begin_vertex>`,`vec3 transformed=vec3(position);float w=sin(time*1.5+position.x*0.5)*0.2*position.y;transformed.x+=w;#include <begin_vertex>`);grassMat.userData.shader=s;};
+        const iG=new THREE.InstancedMesh(bGeo,grassMat,CONFIG.grassCount); const dummy=new THREE.Object3D();let c=0;
+        for(let i=0;i<100000;i++){ if(c>=CONFIG.grassCount)break; const r=Math.random()*420;const a=Math.random()*Math.PI*2;const x=Math.cos(a)*r;const z=Math.sin(a)*r;const h=getTerrainHeight(x,z); if(h<-8){dummy.position.set(x,h,z);dummy.rotation.y=Math.random()*Math.PI;dummy.scale.setScalar(0.7+Math.random()*0.6);dummy.updateMatrix();iG.setMatrixAt(c++,dummy.matrix);} }
+        if(!isMobile) iG.receiveShadow=true; scene.add(iG);
+    }
+    function createHighAltitudeClouds(){
+        const cv=document.createElement('canvas');cv.width=128;cv.height=128; const cx=cv.getContext('2d'),g=cx.createRadialGradient(64,64,0,64,64,64);g.addColorStop(0,'rgba(255,180,120,0.5)');g.addColorStop(1,'rgba(0,0,0,0)');cx.fillStyle=g;cx.fillRect(0,0,128,128);
+        const mat=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}); const gp=new THREE.Group();
+        for(let i=0;i<(isMobile?25:45);i++){ const cl=new THREE.Group(); for(let j=0;j<15;j++){const p=new THREE.Sprite(mat);p.position.set((Math.random()-0.5)*50,(Math.random()-0.5)*20,(Math.random()-0.5)*50);p.scale.setScalar(40+Math.random()*40);cl.add(p);} cl.position.set((Math.random()-0.5)*3200,250+Math.random()*150,(Math.random()-0.5)*3200);gp.add(cl);cloudParticles.push(cl);}scene.add(gp);
+    }
+    function createFloatingBoard(){
+        const g=new THREE.TorusGeometry(8,0.3,16,32);const m=new THREE.MeshBasicMaterial({color:0xffaa00});const r=new THREE.Mesh(g,m);r.rotation.x=Math.PI/2;r.position.y=BOARD_HEIGHT-3;scene.add(r);
+        const b=new THREE.Mesh(new THREE.BoxGeometry(9,0.5,9),new THREE.MeshStandardMaterial({color:0x221111,roughness:0.5}));b.position.y=BOARD_HEIGHT-0.25;if(!isMobile) b.receiveShadow=true;scene.add(b);
+        for(let r=0;r<8;r++)for(let c=0;c<8;c++){ const n=String.fromCharCode(97+c)+(r+1),w=(r+c)%2!==0; const t=new THREE.Mesh(new THREE.BoxGeometry(1,0.2,1),new THREE.MeshStandardMaterial({color:w?0xffddbb:0x443333,roughness:0.2,metalness:0.3})); t.position.set(c-3.5,BOARD_HEIGHT,3.5-r);t.userData={square:n,isTile:true};if(!isMobile) {t.receiveShadow=true;t.castShadow=true;}scene.add(t);tilesMap[n]=t; }
+    }
+    function animate(){
+        requestAnimationFrame(animate); const t=clock.getElapsedTime(); if(window.TWEEN) window.TWEEN.update(); controls.update();
+        if(grassMat&&grassMat.userData.shader)grassMat.userData.shader.uniforms.time.value=t; cloudParticles.forEach(c=>{c.rotation.y+=0.0003;}); renderer.render(scene,camera);
+    }
+
+    function initGame() {
+        console.log("Game Logic Initializing...");
+        if (window.Chess) { game = new window.Chess(); } 
+        else { alert("錯誤：Chess.js 未載入"); return; }
+
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getDatabase(app);
+            auth = getAuth(app);
+        } catch(e) { console.error("Firebase Init Error:", e); }
+
+        init3D(null, handleSquareClick, handleCameraUpdate);
+        setLoginMode(true);
+
+        setTimeout(setupUIListeners, 500);
+        
+        onAuthStateChanged(auth, (user) => {
+            const loadingEl = document.getElementById('loading');
+            if(loadingEl) loadingEl.style.display = 'none';
+            
+            if (user) {
+                if (user.isAnonymous && !isGuestLoginIntent) {
+                    signOut(auth); return;
+                }
+                currentUser = user;
+                document.getElementById('auth-modal').style.display = 'none';
+                document.getElementById('ui').style.display = 'block';
+                setLoginMode(false);
+                checkAndCreateUserProfile(user);
+            } else {
+                currentUser = null;
+                document.getElementById('auth-modal').style.display = 'flex';
+                document.getElementById('ui').style.display = 'none';
+                setLoginMode(true);
+                resetAuthForm();
+                isGuestLoginIntent = false;
+            }
+        });
+
+        setTimeout(() => { if(game) syncBoardVisuals(game); }, 100);
+    }
+
+    function setupUIListeners() {
+        const bind = (id, fn) => {
+            const el = document.getElementById(id);
+            if(el) { el.onclick = fn; } 
+        };
+
+        bind('btn-create', createRoom);
+        bind('btn-join', joinRoom);
+        bind('btn-leave', leaveRoom);
+        bind('auth-action-btn', handleLogin);
+        
+        const guestBtn = document.getElementById('guest-btn');
+        if(guestBtn) {
+            guestBtn.onclick = () => {
+                isGuestLoginIntent = true;
+                signInAnonymously(auth).catch((error) => {
+                    isGuestLoginIntent = false; handleAuthError(error);
+                });
+            };
+        }
+
+        bind('btn-logout', handleLogout); 
+        bind('forgot-pw', handleForgotPassword);
+        bind('btn-custom', () => {
+            document.getElementById('custom-panel').classList.add('active');
+            if(currentUser && currentUser.isAnonymous) {
+                document.getElementById('guest-avatar-controls').style.display = 'block';
+            } else { document.getElementById('guest-avatar-controls').style.display = 'none'; }
+        });
+
+        bind('btn-save-custom', saveUserSettings);
+        bind('btn-random-avatar', randomizeAvatar);
+
+        const fileInput = document.getElementById('avatar-upload');
+        if(fileInput) fileInput.addEventListener('change', handleAvatarFileSelect);
+        document.getElementById('avatar-seed').oninput = (e) => updateAvatarPreview(e.target.value, null);
+    }
+
+    function handleCameraUpdate(camData) {
+        if (!isOnline || !gameId || !currentUser) return;
+        const now = Date.now();
+        if (now - lastCameraUpdate > 200) {
+            update(ref(db, `games/${gameId}/${playerColor}/camera`), { x: camData.x, y: camData.y, z: camData.z });
+            lastCameraUpdate = now;
+        }
+    }
+
+    function setupGameListeners() {
+        onValue(ref(db, 'games/' + gameId), (snapshot) => {
+            const data = snapshot.val();
+            if (!data) return;
+            
+            if (data.status === 'playing' && !data.winner && document.getElementById('turn-txt').innerText.includes("等待")) {
+                if (data.black) {
+                    const oppName = playerColor === 'w' ? data.black.name : data.white.name;
+                    document.getElementById('opponent-info').innerText = `VS: ${oppName}`;
+                    document.getElementById('room-display').innerText = `房間號：${gameId} (對戰中)`;
+                    if(playerColor === 'w') alert(`對手 ${data.black.name} 已加入！`);
+                    updateStatusHUD();
+                }
+            }
+            if (data.fen !== game.fen()) {
+                game.load(data.fen);
+                syncBoardVisuals(game); updateStatusHUD();
+                if (game.turn() === playerColor) isProcessing = false;
+            }
+            if (data.winner) handleGameOver(data.winner);
+        });
+
+        const opponentColor = playerColor === 'w' ? 'b' : 'w';
+        onValue(ref(db, `games/${gameId}/${opponentColor}/camera`), (snapshot) => {
+            const pos = snapshot.val(); if (pos) updateOpponentGhost(pos);
+        });
+    }
+
+    function handleLogout() {
+        if (!currentUser) return;
+        if (currentUser.isAnonymous) {
+            const confirmLogout = confirm("訪客登出後，您的戰績將會被刪除。確定要登出嗎？");
+            if (!confirmLogout) return;
+            remove(ref(db, 'users/' + currentUser.uid)).then(() => signOut(auth)).catch(() => signOut(auth));
+        } else { signOut(auth); }
+    }
+
+    function leaveRoom() {
+        if (!gameId) return;
+        const confirmLeave = confirm("確定要退出房間嗎？");
+        if (!confirmLeave) return;
+
+        off(ref(db, 'games/' + gameId)); off(ref(db, `games/${gameId}/w/camera`)); off(ref(db, `games/${gameId}/b/camera`));
+        gameId = null; isOnline = false; game.reset();
+        syncBoardVisuals(game); moveCamera({x: 0, y: 60, z: 100}); updateOpponentGhost(null); toggleLobbyUI(false);
+    }
+
+    function toggleLobbyUI(isPlaying) {
+        const lobbyBtns = document.getElementById('lobby-buttons'); const leaveBtn = document.getElementById('btn-leave');
+        if (isPlaying) { lobbyBtns.style.display = 'none'; leaveBtn.style.display = 'block';
+        } else { lobbyBtns.style.display = 'block'; leaveBtn.style.display = 'none'; document.getElementById('room-display').innerText = '狀態：閒置中'; document.getElementById('room-display').style.color = '#fff'; document.getElementById('opponent-info').innerText = '對手: ---'; }
+    }
+
+    function createRoom() {
+        if (!currentUser) { alert("請先登入"); return; }
+        game.reset(); syncBoardVisuals(game); 
+        gameId = Math.floor(1000 + Math.random() * 9000).toString();
+        
+        document.getElementById('room-display').innerHTML = `房間號碼：<span style="color:#00e5ff; font-size:16px;">${gameId}</span><br>等待對手加入...`;
+        document.getElementById('opponent-info').innerText = "等待對手...";
+        toggleLobbyUI(true);
+        
+        get(ref(db, 'users/' + currentUser.uid)).then(snap => {
+            const userData = snap.val() || { name: "Player", elo: 0 };
+            set(ref(db, 'games/' + gameId), { fen: game.fen(), turn: 'w', white: { uid: currentUser.uid, elo: userData.elo, name: userData.name }, black: null, status: 'waiting' }).then(() => {
+                playerColor = 'w'; isOnline = true; setupGameListeners(); moveCamera({x: 0, y: 60, z: 100}); alert(`房間已建立！號碼：${gameId}`);
+            }).catch(err => { alert("網路錯誤，無法建立房間"); leaveRoom(); });
+        });
+    }
+
+    function joinRoom() {
+        const id = prompt('請輸入房間號碼:'); if(!id) return;
+        get(ref(db, 'games/' + id)).then((snapshot) => {
+            if (snapshot.exists()) {
+                const gameData = snapshot.val();
+                if(gameData.status !== 'waiting') { alert("房間已滿或遊戲已結束"); return; }
+                gameId = id; game.reset(); syncBoardVisuals(game); toggleLobbyUI(true);
+                const myInfo = { uid: currentUser.uid, elo: userSettings.elo || 0, name: userSettings.name || "Player" };
+                update(ref(db, 'games/' + gameId), { black: myInfo, status: 'playing' }).then(() => {
+                    playerColor = 'b'; isOnline = true; setupGameListeners();
+                    document.getElementById('room-display').innerText = `房間號：${gameId} (對戰中)`;
+                    document.getElementById('opponent-info').innerText = `VS: ${gameData.white.name}`;
+                    moveCamera({x: 0, y: 60, z: -100}); game.load(gameData.fen); syncBoardVisuals(game); updateStatusHUD();
+                });
+            } else { alert("房間不存在"); }
+        });
+    }
+
+    function previewStyle(type, value) { const tempSettings = {}; if (type === 'piece') tempSettings.pieceStyle = value; if (type === 'board') tempSettings.boardStyle = value; updateTheme(tempSettings); }
+    function triggerAvatarUpload() { if (currentUser && !currentUser.isAnonymous) { document.getElementById('avatar-upload').click(); } else { alert("訪客請使用隨機代碼，或註冊以解鎖上傳功能。"); } }
+    function handleAvatarFileSelect(e) { const file = e.target.files[0]; if (!file) return; if (file.size > 1024 * 1024) { alert("圖片請小於 1MB"); return; } const reader = new FileReader(); reader.onload = function(evt) { const base64 = evt.target.result; updateAvatarPreview(null, base64); userSettings.tempAvatarImage = base64; }; reader.readAsDataURL(file); }
+    function randomizeAvatar() { const randomSeed = Math.random().toString(36).substring(7); document.getElementById('avatar-seed').value = randomSeed; updateAvatarPreview(randomSeed, null); }
+    function updateAvatarPreview(seed, base64) { const imgEl = document.getElementById('my-avatar'); if (base64) { imgEl.src = base64; } else { const s = seed || userSettings.avatarSeed; imgEl.src = `https://api.dicebear.com/7.x/bottts/svg?seed=${s}`; } }
+    function saveUserSettings() {
+        if (!currentUser) return;
+        const newName = document.getElementById('edit-name').value.trim();
+        const newSettings = { name: newName || userSettings.name, pieceStyle: document.getElementById('selected-piece-style').value, boardStyle: document.getElementById('selected-board-style').value };
+        if (currentUser.isAnonymous) { newSettings.avatarSeed = document.getElementById('avatar-seed').value; } else if (userSettings.tempAvatarImage) { newSettings.avatarImage = userSettings.tempAvatarImage; }
+        update(ref(db, 'users/' + currentUser.uid), newSettings).then(() => {
+            alert("設定已保存！"); userSettings = { ...userSettings, ...newSettings }; delete userSettings.tempAvatarImage; loadUserProfile(); document.getElementById('custom-panel').classList.remove('active');
+        });
+    }
+
+    function checkAndCreateUserProfile(user) {
+        const userRef = ref(db, 'users/' + user.uid);
+        get(userRef).then((snapshot) => {
+            if (!snapshot.exists()) {
+                const nickEl = document.getElementById('nickname'); const inputName = nickEl ? nickEl.value.trim() : ""; const name = inputName || (user.isAnonymous ? `訪客_${user.uid.substring(0,4)}` : user.email.split('@')[0]);
+                set(userRef, { name: name, email: user.email || "guest", elo: 0, wins: 0, losses: 0 }).then(loadUserProfile);
+            } else { loadUserProfile(); }
+        });
+    }
+
+    function loadUserProfile() {
+        if (!currentUser) return;
+        onValue(ref(db, 'users/' + currentUser.uid), (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                userSettings = { ...userSettings, ...data }; document.getElementById('user-name').innerText = data.name; document.getElementById('edit-name').value = data.name; document.getElementById('user-elo').innerText = data.elo;
+                const seed = data.avatarSeed || data.name; const avatarUrl = data.avatarImage ? data.avatarImage : `https://api.dicebear.com/7.x/bottts/svg?seed=${seed}`;
+                document.getElementById('hud-avatar').src = avatarUrl; document.getElementById('my-avatar').src = avatarUrl; if(!data.avatarImage) document.getElementById('avatar-seed').value = seed;
+                updateRankBadge(data.elo); if(data.pieceStyle) document.getElementById('selected-piece-style').value = data.pieceStyle; if(data.boardStyle) document.getElementById('selected-board-style').value = data.boardStyle; updateTheme(userSettings);
+            }
+        });
+    }
+
+    function updateRankBadge(elo) {
+        const badge = document.getElementById('user-rank'); badge.className = 'rank-badge';
+        if (elo < 200) { badge.innerText = "新手 NOVICE"; badge.classList.add('rank-bronze'); }
+        else if (elo < 500) { badge.innerText = "銅牌 BRONZE"; badge.classList.add('rank-bronze'); }
+        else if (elo < 1000) { badge.innerText = "銀牌 SILVER"; badge.classList.add('rank-silver'); }
+        else if (elo < 1500) { badge.innerText = "金牌 GOLD"; badge.classList.add('rank-gold'); }
+        else if (elo < 2000) { badge.innerText = "鑽石 DIAMOND"; badge.classList.add('rank-diamond'); }
+        else { badge.innerText = "霓虹宗師"; badge.classList.add('rank-master'); }
+    }
+
+    function handleSquareClick(sq) {
+        if(isProcessing) return; if(isOnline && game.turn() !== playerColor) return;
+        const p = game.get(sq);
+        if(!selectedSquare) {
+            if(p && p.color === game.turn()) {
+                if(!isOnline || (isOnline && p.color === playerColor)) {
+                    selectedSquare = sq; const validMoves = game.moves({square: sq, verbose: true}); highlightSquare(sq, validMoves);
+                }
+            }
+        } else {
+            if(p && p.color === game.turn()) {
+                selectedSquare = sq; const validMoves = game.moves({square: sq, verbose: true}); highlightSquare(sq, validMoves); return;
+            }
+            const move = game.move({from: selectedSquare, to: sq, promotion: 'q'});
+            if(move) {
+                isProcessing = true;
+                animateMove(move, () => {
+                    syncBoardVisuals(game); updateStatusHUD();
+                    if(isOnline) sendMove(move); else { if(game.turn() === 'b') setTimeout(makeRandomAI, 500); else isProcessing = false; }
+                });
+                selectedSquare = null;
+            } else { selectedSquare = null; clearHighlights(); }
+        }
+    }
+
+    function resetAuthForm() { isRegistering = false; document.getElementById('nickname-container').style.display = 'none'; document.getElementById('auth-action-btn').innerText = "進入世界"; document.getElementById('auth-error').innerText = ""; }
+
+    async function handleLogin() {
+        const emailEl = document.getElementById('email'); const passEl = document.getElementById('password'); const errorMsg = document.getElementById('auth-error');
+        if(!emailEl || !passEl) return;
+        const email = emailEl.value.trim(); const password = passEl.value.trim();
+        if(!email || !password) { errorMsg.innerText = "請輸入帳號密碼"; return; }
+        if(!email.includes('@')) { errorMsg.innerText = "Email 格式不正確"; return; }
+
+        if (isRegistering) {
+            const nickname = document.getElementById('nickname').value.trim(); if(!nickname) { errorMsg.innerText = "請輸入您的暱稱"; return; }
+            errorMsg.innerText = "註冊中..."; try { await createUserWithEmailAndPassword(auth, email, password); } catch (error) { handleAuthError(error); } return;
+        }
+
+        errorMsg.innerText = "驗證身分中...";
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+        } catch (error) {
+            if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-login-credentials') {
+                isRegistering = true; document.getElementById('nickname-container').style.display = 'block'; document.getElementById('auth-action-btn').innerText = "確認註冊"; errorMsg.innerText = "歡迎新指揮官，請設定暱稱。"; errorMsg.style.color = "#00ff00"; 
+            } else { handleAuthError(error); }
+        }
+    }
+
+    function handleAuthError(error) {
+        const errorMsg = document.getElementById('auth-error'); errorMsg.style.color = "#ff0055"; let msg = error.message;
+        if(msg.includes("weak-password")) msg = "密碼太弱"; if(msg.includes("email-already-in-use")) msg = "此信箱已被註冊";
+        errorMsg.innerText = msg; console.error("Auth Error:", error);
+    }
+
+    async function handleForgotPassword() {
+        const email = document.getElementById('email').value.trim(); const errorMsg = document.getElementById('auth-error');
+        if(!email || !email.includes('@')) { errorMsg.innerText = "請先輸入 Email"; return; }
+        try { await sendPasswordResetEmail(auth, email); alert(`密碼重設信已發送至 ${email}`); } catch (error) { errorMsg.innerText = "發送失敗：" + error.message; }
+    }
+
+    function updateStatusHUD(){
+        const t = document.getElementById('turn-txt'); const turn = game.turn();
+        if(isOnline){ t.innerText = turn==='w' ? "白方回合" : "黑方回合"; t.style.color = turn==='w' ? "#00e5ff" : "#ff0055";
+        } else { t.innerText = turn==='w' ? "藍方回合" : "電腦回合"; t.style.color = turn==='w' ? "#00e5ff" : "#ff0055"; }
+    }
+
+    function handleGameOver(winnerColor) {
+        isProcessing = true; let msg = winnerColor === playerColor ? "勝利！" : "戰敗..."; alert(msg);
+        const t = document.getElementById('turn-txt'); t.innerText = winnerColor === 'w' ? "白方勝利" : "黑方勝利"; t.style.color = "#ffff00";
+    }
+
+    function calculateELO(winnerColor) {
+        get(ref(db, 'games/' + gameId)).then(snap => {
+            const data = snap.val(); if(data.calculated) return; 
+            if(playerColor === 'w') {
+                const K = 32; const expectW = 1 / (1 + Math.pow(10, (data.black.elo - data.white.elo) / 400)); const expectB = 1 / (1 + Math.pow(10, (data.white.elo - data.black.elo) / 400));
+                const newWElo = Math.round(data.white.elo + K * ((winnerColor === 'w' ? 1 : 0) - expectW)); const newBElo = Math.round(data.black.elo + K * ((winnerColor === 'b' ? 1 : 0) - expectB));
+                update(ref(db, 'users/' + data.white.uid), { elo: newWElo }); update(ref(db, 'users/' + data.black.uid), { elo: newBElo }); update(ref(db, 'games/' + gameId), { calculated: true });
+            }
+        });
+    }
+
+    function sendMove(move) {
+        if (!isOnline) return;
+        const nextFen = game.fen(); let updateData = { fen: nextFen, turn: game.turn(), lastMove: move };
+        if (game.in_checkmate()) { const winnerColor = game.turn() === 'w' ? 'b' : 'w'; updateData.winner = winnerColor; updateData.status = 'finished'; calculateELO(winnerColor); }
+        update(ref(db, 'games/' + gameId), updateData); isProcessing = false;
+    }
+
+    function makeRandomAI(){
+        const ms = game.moves(); if(ms.length === 0) return; const m = ms[Math.floor(Math.random() * ms.length)]; game.move(m);
+        animateMove(game.history({verbose:true}).pop(), () => { syncBoardVisuals(game); updateStatusHUD(); isProcessing = false; });
+    }
+
+    window.triggerAvatarUpload = triggerAvatarUpload; 
+    window.previewSkin = function(type, value, element) {
+        if(element.classList.contains('locked')) return; const grid = document.getElementById(`${type}-skin-grid`); const items = grid.getElementsByClassName('skin-item');
+        for(let item of items) item.classList.remove('selected'); element.classList.add('selected'); document.getElementById(`selected-${type}-style`).value = value; previewStyle(type, value);
+    }
+    window.onload = () => { initGame(); };
+    window.toggleMenu = function() {
+        const panel = document.getElementById('menu-panel'); panel.classList.toggle('mobile-visible');
+        const backdrop = document.getElementById('menu-backdrop'); if(panel.classList.contains('mobile-visible')) { backdrop.classList.add('active'); } else { backdrop.classList.remove('active'); }
+    }
+    window.closeAllMenus = function() {
+        document.getElementById('custom-panel').classList.remove('active');
+        if(window.innerWidth <= 600) { document.getElementById('menu-backdrop').classList.remove('active'); document.getElementById('menu-panel').classList.remove('mobile-visible'); }
+    }
+</script>
+</body>
+</html>        
 </textarea>
 
     <textarea id="game4" style="display:none;">
+        
 </textarea>
-
+    
     <script>
         // 控制遊戲大廳的邏輯
         function openGame(gameId) {
@@ -245,3 +2518,4 @@
     </script>
 </body>
 </html>
+
